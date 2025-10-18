@@ -1,0 +1,83 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id                String    @id @default(cuid())
+  name              String
+  phone             String
+  inBodyScans       Int       @default(0)
+  invitations       Int       @default(0)
+  subscriptionPrice Float
+  remainingAmount   Float     @default(0)
+  notes             String?
+  isActive          Boolean   @default(true)
+  expiryDate        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  receipts          Receipt[]
+}
+
+model PT {
+  id              String    @id @default(cuid())
+  clientName      String
+  phone           String
+  sessionsPurchased Int
+  sessionsRemaining Int
+  coachName       String
+  pricePerSession Float
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  receipts        Receipt[]
+}
+
+model DayUseInBody {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String
+  serviceType String   // "DayUse" or "InBody"
+  price       Float
+  staffName   String
+  createdAt   DateTime @default(now())
+  receipts    Receipt[]
+}
+
+model Visitor {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Receipt {
+  id            String        @id @default(cuid())
+  receiptNumber Int           @unique
+  type          String        // "Member", "PT", "DayUse", "InBody"
+  amount        Float
+  itemDetails   String        // JSON string with payment details
+  createdAt     DateTime      @default(now())
+  
+  // Relations
+  memberId      String?
+  member        Member?       @relation(fields: [memberId], references: [id])
+  
+  ptId          String?
+  pt            PT?           @relation(fields: [ptId], references: [id])
+  
+  dayUseId      String?
+  dayUse        DayUseInBody? @relation(fields: [dayUseId], references: [id])
+}
+
+model ReceiptCounter {
+  id      Int @id @default(1)
+  current Int @default(1000)
+}
