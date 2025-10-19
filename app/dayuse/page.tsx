@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Receipt } from '@/components/Receipt'
+import { Receipt } from '../../components/Receipt'
 
 interface DayUseEntry {
   id: string
@@ -18,6 +18,7 @@ export default function DayUsePage() {
   const [entries, setEntries] = useState<DayUseEntry[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -25,12 +26,18 @@ export default function DayUsePage() {
     price: 0,
     staffName: '',
   })
-  const [receipt, setReceipt] = useState<any>(null)
+  const [receipt, setReceipt] = useState<{
+    receiptNumber: number
+    type: string
+    amount: number
+    itemDetails: string
+    createdAt: string
+  } | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-const handlePrint = useReactToPrint({
-  content: () => receiptRef.current,
-})
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+  })
 
   const fetchEntries = async () => {
     try {
@@ -51,6 +58,7 @@ const handlePrint = useReactToPrint({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('')
 
     try {
       const response = await fetch('/api/dayuse', {
@@ -62,14 +70,17 @@ const handlePrint = useReactToPrint({
       if (response.ok) {
         const entry = await response.json()
         
-        const receiptsResponse = await fetch(`/api/receipts?dayUseId=${entry.id}`)
-        const receipts = await receiptsResponse.json()
-        
-        if (receipts.length > 0) {
-          setReceipt(receipts[0])
+        try {
+          const receiptsResponse = await fetch(`/api/receipts?dayUseId=${entry.id}`)
+          const receipts = await receiptsResponse.json()
+          
+          if (receipts.length > 0) {
+            setReceipt(receipts[0])
+          }
+        } catch (err) {
+          console.error('Error fetching receipt:', err)
         }
 
-        alert('تم التسجيل بنجاح!')
         setFormData({
           name: '',
           phone: '',
@@ -77,12 +88,17 @@ const handlePrint = useReactToPrint({
           price: 0,
           staffName: '',
         })
+        
+        setMessage('✅ تم التسجيل بنجاح!')
+        setTimeout(() => setMessage(''), 3000)
         fetchEntries()
         setShowForm(false)
+      } else {
+        setMessage('❌ فشل التسجيل')
       }
     } catch (error) {
       console.error(error)
-      alert('حدث خطأ')
+      setMessage('❌ حدث خطأ')
     } finally {
       setLoading(false)
     }
@@ -103,6 +119,13 @@ const handlePrint = useReactToPrint({
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-xl font-semibold mb-4">إضافة عملية جديدة</h2>
+          
+          {message && (
+            <div className={`mb-4 p-3 rounded-lg ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -113,6 +136,7 @@ const handlePrint = useReactToPrint({
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="اسم الزائر"
                 />
               </div>
 
@@ -124,6 +148,7 @@ const handlePrint = useReactToPrint({
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="01xxxxxxxxx"
                 />
               </div>
 
@@ -148,6 +173,7 @@ const handlePrint = useReactToPrint({
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="0.00"
                 />
               </div>
 
@@ -159,6 +185,7 @@ const handlePrint = useReactToPrint({
                   value={formData.staffName}
                   onChange={(e) => setFormData({ ...formData, staffName: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="اسم الموظف"
                 />
               </div>
             </div>
@@ -166,7 +193,7 @@ const handlePrint = useReactToPrint({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400"
+              className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? 'جاري الحفظ...' : 'إضافة'}
             </button>
@@ -230,11 +257,11 @@ const handlePrint = useReactToPrint({
               type={receipt.type}
               amount={receipt.amount}
               details={JSON.parse(receipt.itemDetails)}
-              date={receipt.createdAt}
+              date={new Date(receipt.createdAt)}
             />
           </div>
           <button
-            onClick={() => handlePrint()}
+            onClick={handlePrint}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
             طباعة الإيصال

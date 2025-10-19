@@ -53,12 +53,11 @@ export default function SearchPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="أدخل اسم العضو أو رقم الهاتف..."
                   className="flex-1 px-4 py-3 border rounded-lg text-lg"
-                  autoFocus
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 font-semibold"
+                  className="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
                 >
                   {loading ? '...' : 'بحث'}
                 </button>

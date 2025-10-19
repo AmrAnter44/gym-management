@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import MemberForm from '@/components/MemberForm'
+import MemberForm from '../../components/MemberForm'
 
 interface Member {
   id: string
+  memberNumber: number
   name: string
   phone: string
   inBodyScans: number
@@ -26,9 +27,17 @@ export default function MembersPage() {
     try {
       const response = await fetch('/api/members')
       const data = await response.json()
-      setMembers(data)
+      
+      // تأكد إن البيانات array
+      if (Array.isArray(data)) {
+        setMembers(data)
+      } else {
+        console.error('Invalid data format:', data)
+        setMembers([])
+      }
     } catch (error) {
       console.error('Error fetching members:', error)
+      setMembers([])
     } finally {
       setLoading(false)
     }
@@ -78,6 +87,7 @@ export default function MembersPage() {
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
+                <th className="px-4 py-3 text-right">رقم العضوية</th>
                 <th className="px-4 py-3 text-right">الاسم</th>
                 <th className="px-4 py-3 text-right">الهاتف</th>
                 <th className="px-4 py-3 text-right">InBody</th>
@@ -89,8 +99,9 @@ export default function MembersPage() {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
+              {Array.isArray(members) && members.map((member) => (
                 <tr key={member.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-3 font-bold text-blue-600">#{member.memberNumber}</td>
                   <td className="px-4 py-3">{member.name}</td>
                   <td className="px-4 py-3">{member.phone}</td>
                   <td className="px-4 py-3">{member.inBodyScans}</td>

@@ -20,15 +20,24 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     expiryDate: '',
   })
   const [loading, setLoading] = useState(false)
-  const [receipt, setReceipt] = useState<any>(null)
+  const [message, setMessage] = useState('')
+  const [receipt, setReceipt] = useState<{
+    receiptNumber: number
+    type: string
+    amount: number
+    itemDetails: string
+    createdAt: string
+  } | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-const handlePrint = useReactToPrint({
-  content: () => receiptRef.current,
-})
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('')
 
     try {
       const response = await fetch('/api/members', {
@@ -41,14 +50,18 @@ const handlePrint = useReactToPrint({
         const member = await response.json()
         
         // جلب الإيصال
-        const receiptsResponse = await fetch(`/api/receipts?memberId=${member.id}`)
-        const receipts = await receiptsResponse.json()
-        
-        if (receipts.length > 0) {
-          setReceipt(receipts[0])
+        try {
+          const receiptsResponse = await fetch(`/api/receipts?memberId=${member.id}`)
+          const receipts = await receiptsResponse.json()
+          
+          if (receipts.length > 0) {
+            setReceipt(receipts[0])
+          }
+        } catch (err) {
+          console.error('Error fetching receipt:', err)
         }
 
-        alert('تم إضافة العضو بنجاح!')
+        // تصفير الفورم
         setFormData({
           name: '',
           phone: '',
@@ -59,13 +72,16 @@ const handlePrint = useReactToPrint({
           notes: '',
           expiryDate: '',
         })
+        
+        setMessage('✅ تم إضافة العضو بنجاح!')
+        setTimeout(() => setMessage(''), 3000)
         onSuccess()
       } else {
-        alert('فشل إضافة العضو')
+        setMessage('❌ فشل إضافة العضو')
       }
     } catch (error) {
       console.error(error)
-      alert('حدث خطأ')
+      setMessage('❌ حدث خطأ')
     } finally {
       setLoading(false)
     }
@@ -73,6 +89,12 @@ const handlePrint = useReactToPrint({
 
   return (
     <div>
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {message}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -83,6 +105,7 @@ const handlePrint = useReactToPrint({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="أدخل اسم العضو"
             />
           </div>
 
@@ -94,6 +117,7 @@ const handlePrint = useReactToPrint({
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="01xxxxxxxxx"
             />
           </div>
 
@@ -104,6 +128,7 @@ const handlePrint = useReactToPrint({
               value={formData.inBodyScans}
               onChange={(e) => setFormData({ ...formData, inBodyScans: parseInt(e.target.value) || 0 })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="0"
             />
           </div>
 
@@ -114,6 +139,7 @@ const handlePrint = useReactToPrint({
               value={formData.invitations}
               onChange={(e) => setFormData({ ...formData, invitations: parseInt(e.target.value) || 0 })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="0"
             />
           </div>
 
@@ -125,6 +151,7 @@ const handlePrint = useReactToPrint({
               value={formData.subscriptionPrice}
               onChange={(e) => setFormData({ ...formData, subscriptionPrice: parseFloat(e.target.value) || 0 })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="0.00"
             />
           </div>
 
@@ -135,6 +162,7 @@ const handlePrint = useReactToPrint({
               value={formData.remainingAmount}
               onChange={(e) => setFormData({ ...formData, remainingAmount: parseFloat(e.target.value) || 0 })}
               className="w-full px-3 py-2 border rounded-lg"
+              placeholder="0.00"
             />
           </div>
 
@@ -156,13 +184,14 @@ const handlePrint = useReactToPrint({
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
             rows={3}
+            placeholder="أي ملاحظات إضافية..."
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {loading ? 'جاري الحفظ...' : 'إضافة عضو'}
         </button>
@@ -177,11 +206,11 @@ const handlePrint = useReactToPrint({
               type={receipt.type}
               amount={receipt.amount}
               details={JSON.parse(receipt.itemDetails)}
-              date={receipt.createdAt}
+              date={new Date(receipt.createdAt)}
             />
           </div>
           <button
-            onClick={() => handlePrint()}
+            onClick={handlePrint}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
             طباعة الإيصال

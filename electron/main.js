@@ -20,7 +20,7 @@ function createWindow() {
     title: 'نظام إدارة الصالة الرياضية',
   })
 
-  const startURL = 'http://localhost:3000'
+  const startURL = 'http://localhost:4001'
   
   mainWindow.loadURL(startURL)
 

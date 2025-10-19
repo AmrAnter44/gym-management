@@ -1,6 +1,7 @@
 -- CreateTable
 CREATE TABLE "Member" (
     "id" TEXT NOT NULL PRIMARY KEY,
+    "memberNumber" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
     "inBodyScans" INTEGER NOT NULL DEFAULT 0,
@@ -69,6 +70,15 @@ CREATE TABLE "ReceiptCounter" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
     "current" INTEGER NOT NULL DEFAULT 1000
 );
+
+-- CreateTable
+CREATE TABLE "MemberCounter" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
+    "current" INTEGER NOT NULL DEFAULT 1000
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Member_memberNumber_key" ON "Member"("memberNumber");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Receipt_receiptNumber_key" ON "Receipt"("receiptNumber");

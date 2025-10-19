@@ -2,12 +2,13 @@
   "name": "gym-management",
   "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4001",
     "lint": "next lint",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\""
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:4001 && electron .\""
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
@@ -22,7 +23,7 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.17",
-    "concurrently": "^8.2.0",
+    "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^38.3.0",
     "electron-builder": "^24.0.0",

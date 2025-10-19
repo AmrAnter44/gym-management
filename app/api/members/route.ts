@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../../../lib/prisma'
 
 // GET - جلب كل الأعضاء
 export async function GET() {
@@ -18,11 +18,26 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, expiryDate } = body
+    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, expiryDate } = body
+
+    // التحقق من أن رقم العضوية غير مستخدم
+    if (memberNumber) {
+      const existingMember = await prisma.member.findUnique({
+        where: { memberNumber: parseInt(memberNumber) }
+      })
+      
+      if (existingMember) {
+        return NextResponse.json(
+          { error: `رقم العضوية ${memberNumber} مستخدم بالفعل` }, 
+          { status: 400 }
+        )
+      }
+    }
 
     // إنشاء العضو
     const member = await prisma.member.create({
       data: {
+        memberNumber: memberNumber ? parseInt(memberNumber) : undefined,
         name,
         phone,
         inBodyScans: inBodyScans || 0,
@@ -52,6 +67,7 @@ export async function POST(request: Request) {
           type: 'Member',
           amount: subscriptionPrice - remainingAmount,
           itemDetails: JSON.stringify({
+            memberNumber: member.memberNumber,
             memberName: name,
             subscriptionPrice,
             paidAmount: subscriptionPrice - remainingAmount,

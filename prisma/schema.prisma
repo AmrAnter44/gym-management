@@ -11,6 +11,7 @@ datasource db {
 
 model Member {
   id                String    @id @default(cuid())
+  memberNumber      Int       @unique // رقم العضوية القابل للتحكم
   name              String
   phone             String
   inBodyScans       Int       @default(0)
@@ -78,6 +79,11 @@ model Receipt {
 }
 
 model ReceiptCounter {
+  id      Int @id @default(1)
+  current Int @default(1000)
+}
+
+model MemberCounter {
   id      Int @id @default(1)
   current Int @default(1000)
 }

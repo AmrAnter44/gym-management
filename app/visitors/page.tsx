@@ -14,6 +14,7 @@ export default function VisitorsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -39,6 +40,7 @@ export default function VisitorsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('')
 
     try {
       const response = await fetch('/api/visitors', {
@@ -48,14 +50,17 @@ export default function VisitorsPage() {
       })
 
       if (response.ok) {
-        alert('تم إضافة الزائر بنجاح!')
         setFormData({ name: '', phone: '', notes: '' })
+        setMessage('✅ تم إضافة الزائر بنجاح!')
+        setTimeout(() => setMessage(''), 3000)
         fetchVisitors()
         setShowForm(false)
+      } else {
+        setMessage('❌ فشل إضافة الزائر')
       }
     } catch (error) {
       console.error(error)
-      alert('حدث خطأ')
+      setMessage('❌ حدث خطأ')
     } finally {
       setLoading(false)
     }
@@ -87,6 +92,13 @@ export default function VisitorsPage() {
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-xl font-semibold mb-4">إضافة زائر جديد</h2>
+          
+          {message && (
+            <div className={`mb-4 p-3 rounded-lg ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -97,6 +109,7 @@ export default function VisitorsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="اسم الزائر"
                 />
               </div>
 
@@ -108,6 +121,7 @@ export default function VisitorsPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="01xxxxxxxxx"
                 />
               </div>
             </div>
@@ -126,7 +140,7 @@ export default function VisitorsPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:bg-gray-400"
+              className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? 'جاري الحفظ...' : 'إضافة زائر'}
             </button>

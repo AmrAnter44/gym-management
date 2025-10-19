@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Receipt } from '@/components/Receipt'
+import { Receipt } from '../../components/Receipt'
 
 interface PTSession {
   id: string
@@ -19,6 +19,7 @@ export default function PTPage() {
   const [sessions, setSessions] = useState<PTSession[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
     clientName: '',
     phone: '',
@@ -26,12 +27,18 @@ export default function PTPage() {
     coachName: '',
     pricePerSession: 0,
   })
-  const [receipt, setReceipt] = useState<any>(null)
+  const [receipt, setReceipt] = useState<{
+    receiptNumber: number
+    type: string
+    amount: number
+    itemDetails: string
+    createdAt: string
+  } | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-const handlePrint = useReactToPrint({
-  content: () => receiptRef.current,
-})
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+  })
 
   const fetchSessions = async () => {
     try {
@@ -52,6 +59,7 @@ const handlePrint = useReactToPrint({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('')
 
     try {
       const response = await fetch('/api/pt', {
@@ -63,14 +71,17 @@ const handlePrint = useReactToPrint({
       if (response.ok) {
         const pt = await response.json()
         
-        const receiptsResponse = await fetch(`/api/receipts?ptId=${pt.id}`)
-        const receipts = await receiptsResponse.json()
-        
-        if (receipts.length > 0) {
-          setReceipt(receipts[0])
+        try {
+          const receiptsResponse = await fetch(`/api/receipts?ptId=${pt.id}`)
+          const receipts = await receiptsResponse.json()
+          
+          if (receipts.length > 0) {
+            setReceipt(receipts[0])
+          }
+        } catch (err) {
+          console.error('Error fetching receipt:', err)
         }
 
-        alert('تم إضافة الجلسة بنجاح!')
         setFormData({
           clientName: '',
           phone: '',
@@ -78,12 +89,17 @@ const handlePrint = useReactToPrint({
           coachName: '',
           pricePerSession: 0,
         })
+        
+        setMessage('✅ تم إضافة الجلسة بنجاح!')
+        setTimeout(() => setMessage(''), 3000)
         fetchSessions()
         setShowForm(false)
+      } else {
+        setMessage('❌ فشل إضافة الجلسة')
       }
     } catch (error) {
       console.error(error)
-      alert('حدث خطأ')
+      setMessage('❌ حدث خطأ')
     } finally {
       setLoading(false)
     }
@@ -118,6 +134,13 @@ const handlePrint = useReactToPrint({
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-xl font-semibold mb-4">إضافة جلسة PT جديدة</h2>
+          
+          {message && (
+            <div className={`mb-4 p-3 rounded-lg ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -128,6 +151,7 @@ const handlePrint = useReactToPrint({
                   value={formData.clientName}
                   onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="اسم العميل"
                 />
               </div>
 
@@ -139,6 +163,7 @@ const handlePrint = useReactToPrint({
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="01xxxxxxxxx"
                 />
               </div>
 
@@ -151,6 +176,7 @@ const handlePrint = useReactToPrint({
                   value={formData.sessionsPurchased}
                   onChange={(e) => setFormData({ ...formData, sessionsPurchased: parseInt(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="عدد الجلسات"
                 />
               </div>
 
@@ -162,6 +188,7 @@ const handlePrint = useReactToPrint({
                   value={formData.coachName}
                   onChange={(e) => setFormData({ ...formData, coachName: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="اسم المدرب"
                 />
               </div>
 
@@ -174,6 +201,7 @@ const handlePrint = useReactToPrint({
                   value={formData.pricePerSession}
                   onChange={(e) => setFormData({ ...formData, pricePerSession: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="0.00"
                 />
               </div>
 
@@ -190,7 +218,7 @@ const handlePrint = useReactToPrint({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+              className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? 'جاري الحفظ...' : 'إضافة جلسة'}
             </button>
@@ -258,11 +286,11 @@ const handlePrint = useReactToPrint({
               type={receipt.type}
               amount={receipt.amount}
               details={JSON.parse(receipt.itemDetails)}
-              date={receipt.createdAt}
+              date={new Date(receipt.createdAt)}
             />
           </div>
           <button
-            onClick={() => handlePrint()}
+            onClick={handlePrint}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
             طباعة الإيصال
