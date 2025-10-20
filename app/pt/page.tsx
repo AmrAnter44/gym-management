@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Receipt } from '../../components/Receipt'
+import { ReceiptToPrint } from '../../components/ReceiptToPrint'
 
 interface PTSession {
   id: string
@@ -26,17 +26,8 @@ export default function PTPage() {
     coachName: '',
     pricePerSession: 0,
   })
-  const [receipt, setReceipt] = useState<{
-    receiptNumber: number
-    type: string
-    amount: number
-    itemDetails: string
-    createdAt: string
-  } | null>(null)
-
-  const handlePrint = () => {
-    window.print()
-  }
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [receiptData, setReceiptData] = useState<any>(null)
 
   const fetchSessions = async () => {
     try {
@@ -74,10 +65,15 @@ export default function PTPage() {
           const receipts = await receiptsResponse.json()
           
           if (receipts.length > 0) {
-            setReceipt(receipts[0])
-            setTimeout(() => {
-              handlePrint()
-            }, 500)
+            const receipt = receipts[0]
+            setReceiptData({
+              receiptNumber: receipt.receiptNumber,
+              type: receipt.type,
+              amount: receipt.amount,
+              details: JSON.parse(receipt.itemDetails),
+              date: new Date(receipt.createdAt)
+            })
+            setShowReceipt(true)
           }
         } catch (err) {
           console.error('Error fetching receipt:', err)
@@ -278,27 +274,26 @@ export default function PTPage() {
         </div>
       )}
 
-      {receipt && (
-        <div className="print-only">
-          <Receipt
-            receiptNumber={receipt.receiptNumber}
-            type={receipt.type}
-            amount={receipt.amount}
-            details={JSON.parse(receipt.itemDetails)}
-            date={new Date(receipt.createdAt)}
-          />
+      {receiptData && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowReceipt(true)}
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+          >
+            🖨️ طباعة آخر إيصال
+          </button>
         </div>
       )}
 
-      {receipt && (
-        <div className="mt-6">
-          <button
-            onClick={handlePrint}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-          >
-            طباعة الإيصال
-          </button>
-        </div>
+      {showReceipt && receiptData && (
+        <ReceiptToPrint
+          receiptNumber={receiptData.receiptNumber}
+          type={receiptData.type}
+          amount={receiptData.amount}
+          details={receiptData.details}
+          date={receiptData.date}
+          onClose={() => setShowReceipt(false)}
+        />
       )}
     </div>
   )

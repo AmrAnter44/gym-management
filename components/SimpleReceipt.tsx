@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-interface ReceiptProps {
+interface SimpleReceiptProps {
   receiptNumber: number
   type: string
   amount: number
@@ -24,7 +24,7 @@ interface ReceiptProps {
   date: Date | string
 }
 
-export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptProps) {
+export function SimpleReceipt({ receiptNumber, type, amount, details, date }: SimpleReceiptProps) {
   const formattedDate = date instanceof Date ? date : new Date(date)
   
   const getTypeLabel = (type: string) => {
@@ -40,12 +40,11 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
   return (
     <div style={{
       width: '80mm',
-      padding: '5mm',
+      padding: '10mm',
       background: 'white',
       color: 'black',
       fontFamily: 'Arial, sans-serif',
-      fontSize: '12px',
-      margin: '0 auto'
+      fontSize: '14px'
     }}>
       {/* Header */}
       <div style={{
@@ -55,12 +54,12 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
         marginBottom: '15px'
       }}>
         <h1 style={{
-          fontSize: '20px',
+          fontSize: '24px',
           fontWeight: 'bold',
-          margin: '0 0 5px 0'
+          margin: '0 0 8px 0'
         }}>🏋️ صالة الرياضة</h1>
-        <p style={{ fontSize: '11px', margin: '2px 0' }}>إيصال استلام</p>
-        <p style={{ fontSize: '11px', margin: '2px 0' }}>{getTypeLabel(type)}</p>
+        <p style={{ fontSize: '13px', margin: '4px 0' }}>إيصال استلام</p>
+        <p style={{ fontSize: '13px', margin: '4px 0' }}>{getTypeLabel(type)}</p>
       </div>
 
       {/* Receipt Info */}
@@ -68,8 +67,8 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          margin: '5px 0',
-          fontSize: '12px'
+          margin: '8px 0',
+          fontSize: '14px'
         }}>
           <span style={{ fontWeight: 'bold' }}>رقم الإيصال:</span>
           <span>#{receiptNumber}</span>
@@ -77,8 +76,8 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          margin: '5px 0',
-          fontSize: '12px'
+          margin: '8px 0',
+          fontSize: '14px'
         }}>
           <span style={{ fontWeight: 'bold' }}>التاريخ:</span>
           <span>{formattedDate.toLocaleDateString('ar-EG', { 
@@ -93,63 +92,63 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
 
       {/* Details */}
       <div style={{
-        borderTop: '1px solid #000',
-        borderBottom: '1px solid #000',
-        padding: '10px 0',
-        margin: '10px 0'
+        borderTop: '2px solid #000',
+        borderBottom: '2px solid #000',
+        padding: '15px 0',
+        margin: '15px 0'
       }}>
         <h3 style={{
-          fontSize: '13px',
+          fontSize: '16px',
           fontWeight: 'bold',
-          marginBottom: '8px'
+          marginBottom: '12px'
         }}>تفاصيل العملية:</h3>
         
         {details.memberNumber && (
           <div style={{
-            fontSize: '18px',
+            fontSize: '20px',
             fontWeight: 'bold',
             color: '#2563eb',
             textAlign: 'center',
-            margin: '10px 0',
-            padding: '8px',
+            margin: '15px 0',
+            padding: '12px',
             background: '#eff6ff',
-            borderRadius: '5px'
+            borderRadius: '8px'
           }}>
             رقم العضوية: {details.memberNumber}
           </div>
         )}
         
         {details.memberName && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>الاسم:</strong> {details.memberName}
           </div>
         )}
         
         {details.clientName && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>العميل:</strong> {details.clientName}
           </div>
         )}
         
         {details.name && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>الاسم:</strong> {details.name}
           </div>
         )}
         
         {details.subscriptionPrice && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>سعر الاشتراك:</strong> {details.subscriptionPrice} جنيه
           </div>
         )}
         
         {details.sessionsPurchased && (
           <>
-            <div style={{ margin: '5px 0', fontSize: '12px' }}>
+            <div style={{ margin: '8px 0', fontSize: '14px' }}>
               <strong>عدد الجلسات:</strong> {details.sessionsPurchased}
             </div>
             {details.pricePerSession && (
-              <div style={{ margin: '5px 0', fontSize: '12px' }}>
+              <div style={{ margin: '8px 0', fontSize: '14px' }}>
                 <strong>سعر الجلسة:</strong> {details.pricePerSession} جنيه
               </div>
             )}
@@ -157,31 +156,31 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
         )}
         
         {details.coachName && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>المدرب:</strong> {details.coachName}
           </div>
         )}
         
         {details.staffName && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>الموظف:</strong> {details.staffName}
           </div>
         )}
         
         {details.serviceType && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>نوع الخدمة:</strong> {details.serviceType === 'DayUse' ? 'يوم استخدام' : 'InBody'}
           </div>
         )}
         
         {details.paidAmount !== undefined && (
-          <div style={{ margin: '5px 0', fontSize: '12px' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px' }}>
             <strong>المبلغ المدفوع:</strong> {details.paidAmount} جنيه
           </div>
         )}
         
         {details.remainingAmount !== undefined && details.remainingAmount > 0 && (
-          <div style={{ margin: '5px 0', fontSize: '12px', color: '#dc2626' }}>
+          <div style={{ margin: '8px 0', fontSize: '14px', color: '#dc2626' }}>
             <strong>المتبقي:</strong> {details.remainingAmount} جنيه
           </div>
         )}
@@ -191,11 +190,11 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
-        fontSize: '16px',
+        fontSize: '18px',
         fontWeight: 'bold',
-        margin: '15px 0',
-        padding: '10px 0',
-        borderTop: '2px solid #000'
+        margin: '20px 0',
+        padding: '15px 0',
+        borderTop: '3px solid #000'
       }}>
         <span>الإجمالي:</span>
         <span>{amount} جنيه</span>
@@ -204,15 +203,15 @@ export function Receipt({ receiptNumber, type, amount, details, date }: ReceiptP
       {/* Footer */}
       <div style={{
         textAlign: 'center',
-        marginTop: '15px',
-        fontSize: '11px',
+        marginTop: '20px',
+        fontSize: '13px',
         color: '#555',
         borderTop: '2px dashed #000',
-        paddingTop: '10px'
+        paddingTop: '15px'
       }}>
-        <p>شكراً لك ✨</p>
-        <p>نتمنى لك تمريناً ممتعاً 💪</p>
-        <p style={{ fontSize: '10px', marginTop: '8px' }}>
+        <p style={{ margin: '5px 0' }}>شكراً لك ✨</p>
+        <p style={{ margin: '5px 0' }}>نتمنى لك تمريناً ممتعاً 💪</p>
+        <p style={{ fontSize: '11px', marginTop: '10px' }}>
           هذا الإيصال دليل على الدفع
         </p>
       </div>

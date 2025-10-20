@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Receipt } from '../../components/Receipt'
+import { ReceiptToPrint } from '../../components/ReceiptToPrint'
 
 interface ReceiptData {
   id: string
@@ -21,11 +21,8 @@ export default function ReceiptsPage() {
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null)
-
-  const handlePrint = () => {
-    window.print()
-  }
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [selectedReceiptData, setSelectedReceiptData] = useState<any>(null)
 
   const fetchReceipts = async () => {
     try {
@@ -47,12 +44,10 @@ export default function ReceiptsPage() {
   useEffect(() => {
     let filtered = receipts
 
-    // فلترة حسب النوع
     if (filterType !== 'all') {
       filtered = filtered.filter(r => r.type === filterType)
     }
 
-    // فلترة حسب البحث
     if (searchTerm) {
       filtered = filtered.filter(r => {
         const details = JSON.parse(r.itemDetails)
@@ -92,11 +87,15 @@ export default function ReceiptsPage() {
     return filteredReceipts.reduce((sum, r) => sum + r.amount, 0)
   }
 
-  const printReceipt = (receipt: ReceiptData) => {
-    setSelectedReceipt(receipt)
-    setTimeout(() => {
-      handlePrint()
-    }, 100)
+  const handlePrintReceipt = (receipt: ReceiptData) => {
+    setSelectedReceiptData({
+      receiptNumber: receipt.receiptNumber,
+      type: receipt.type,
+      amount: receipt.amount,
+      details: JSON.parse(receipt.itemDetails),
+      date: new Date(receipt.createdAt)
+    })
+    setShowReceipt(true)
   }
 
   return (
@@ -106,7 +105,6 @@ export default function ReceiptsPage() {
         <p className="text-gray-600">متابعة جميع الإيصالات الصادرة</p>
       </div>
 
-      {/* إحصائيات سريعة */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow-md">
           <p className="text-gray-600 text-sm">إجمالي الإيصالات</p>
@@ -133,7 +131,6 @@ export default function ReceiptsPage() {
         </div>
       </div>
 
-      {/* فلاتر */}
       <div className="bg-white p-4 rounded-lg shadow-md mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -163,7 +160,6 @@ export default function ReceiptsPage() {
         </div>
       </div>
 
-      {/* جدول الإيصالات */}
       {loading ? (
         <div className="text-center py-12">جاري التحميل...</div>
       ) : (
@@ -232,10 +228,10 @@ export default function ReceiptsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => printReceipt(receipt)}
+                          onClick={() => handlePrintReceipt(receipt)}
                           className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
                         >
-                          طباعة
+                          🖨️ طباعة
                         </button>
                       </td>
                     </tr>
@@ -253,17 +249,15 @@ export default function ReceiptsPage() {
         </div>
       )}
 
-      {/* الإيصال للطباعة */}
-      {selectedReceipt && (
-        <div className="print-only">
-          <Receipt
-            receiptNumber={selectedReceipt.receiptNumber}
-            type={selectedReceipt.type}
-            amount={selectedReceipt.amount}
-            details={JSON.parse(selectedReceipt.itemDetails)}
-            date={new Date(selectedReceipt.createdAt)}
-          />
-        </div>
+      {showReceipt && selectedReceiptData && (
+        <ReceiptToPrint
+          receiptNumber={selectedReceiptData.receiptNumber}
+          type={selectedReceiptData.type}
+          amount={selectedReceiptData.amount}
+          details={selectedReceiptData.details}
+          date={selectedReceiptData.date}
+          onClose={() => setShowReceipt(false)}
+        />
       )}
     </div>
   )

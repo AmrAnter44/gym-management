@@ -42,11 +42,15 @@ a {
 
 /* إخفاء print-only في الشاشة العادية */
 .print-only {
-  display: none !important;
-  visibility: hidden !important;
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 80mm;
+  background: white;
+  z-index: -1;
 }
 
-/* تنسيقات الطباعة */
+/* تنسيقات الطباعة - حل أقوى */
 @media print {
   @page {
     margin: 0;
@@ -55,15 +59,29 @@ a {
   
   /* إخفاء كل حاجة */
   body * {
-    visibility: hidden !important;
     display: none !important;
   }
   
-  /* إظهار الإيصال بس */
+  /* إخفاء العناصر اللي عليها no-print */
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+  
+  /* إظهار الإيصال وكل محتوياته */
   .print-only,
   .print-only * {
-    visibility: visible !important;
     display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    left: auto !important;
+    z-index: 1 !important;
+  }
+  
+  /* جعل flex layouts تشتغل */
+  .print-only [style*="display: flex"],
+  .print-only [style*="display:flex"] {
+    display: flex !important;
   }
   
   .print-only {
@@ -73,6 +91,7 @@ a {
     width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: white !important;
   }
   
   body {
