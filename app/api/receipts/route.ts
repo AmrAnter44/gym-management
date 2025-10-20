@@ -7,6 +7,7 @@ export async function GET(request: Request) {
     const memberId = searchParams.get('memberId')
     const ptId = searchParams.get('ptId')
     const dayUseId = searchParams.get('dayUseId')
+    const limit = searchParams.get('limit')
 
     let receipts
 
@@ -26,14 +27,16 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' }
       })
     } else {
+      // جلب كل الإيصالات أو عدد محدد
       receipts = await prisma.receipt.findMany({
         orderBy: { createdAt: 'desc' },
-        take: 50
+        take: limit ? parseInt(limit) : undefined
       })
     }
 
     return NextResponse.json(receipts)
   } catch (error) {
+    console.error('Error fetching receipts:', error)
     return NextResponse.json({ error: 'فشل جلب الإيصالات' }, { status: 500 })
   }
 }

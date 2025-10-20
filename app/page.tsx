@@ -8,10 +8,46 @@ export default function HomePage() {
     members: 0,
     activePT: 0,
     todayRevenue: 0,
+    totalReceipts: 0,
   })
 
   useEffect(() => {
-    // يمكنك إضافة API لجلب الإحصائيات هنا
+    const fetchStats = async () => {
+      try {
+        // جلب الأعضاء
+        const membersRes = await fetch('/api/members')
+        const members = await membersRes.json()
+        
+        // جلب جلسات PT
+        const ptRes = await fetch('/api/pt')
+        const ptSessions = await ptRes.json()
+        
+        // جلب الإيصالات
+        const receiptsRes = await fetch('/api/receipts?limit=100')
+        const receipts = await receiptsRes.json()
+        
+        // حساب إيرادات اليوم
+        const today = new Date().toDateString()
+        const todayReceipts = receipts.filter((r: any) => {
+          return new Date(r.createdAt).toDateString() === today
+        })
+        const todayRevenue = todayReceipts.reduce((sum: number, r: any) => sum + r.amount, 0)
+        
+        // حساب PT النشطة
+        const activePT = ptSessions.filter((pt: any) => pt.sessionsRemaining > 0).length
+        
+        setStats({
+          members: Array.isArray(members) ? members.length : 0,
+          activePT,
+          todayRevenue,
+          totalReceipts: receipts.length,
+        })
+      } catch (error) {
+        console.error('Error fetching stats:', error)
+      }
+    }
+    
+    fetchStats()
   }, [])
 
   const modules = [
@@ -44,6 +80,13 @@ export default function HomePage() {
       color: 'bg-orange-500',
     },
     {
+      title: 'الإيصالات',
+      icon: '🧾',
+      description: 'متابعة جميع الإيصالات الصادرة',
+      href: '/receipts',
+      color: 'bg-indigo-500',
+    },
+    {
       title: 'البحث السريع',
       icon: '🔍',
       description: 'بحث فوري عن الأعضاء والاشتراكات',
@@ -59,7 +102,7 @@ export default function HomePage() {
         <p className="text-gray-600">نظام شامل وسريع لإدارة جميع عمليات الصالة الرياضية</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -84,9 +127,19 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">إيرادات اليوم</p>
-              <p className="text-3xl font-bold">{stats.todayRevenue} ج.م</p>
+              <p className="text-3xl font-bold">{stats.todayRevenue.toFixed(0)} ج.م</p>
             </div>
             <div className="text-4xl">💰</div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">إجمالي الإيصالات</p>
+              <p className="text-3xl font-bold">{stats.totalReceipts}</p>
+            </div>
+            <div className="text-4xl">🧾</div>
           </div>
         </div>
       </div>

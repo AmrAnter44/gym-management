@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useReactToPrint } from 'react-to-print'
-import { Receipt } from './Receipt'
+import { useState, useEffect } from 'react'
+import { printReceipt, generateReceiptHTML } from '../lib/printHelper'
 
 interface MemberFormProps {
   onSuccess: () => void
 }
 
 export default function MemberForm({ onSuccess }: MemberFormProps) {
+  const [nextMemberNumber, setNextMemberNumber] = useState<number>(1001)
   const [formData, setFormData] = useState({
+    memberNumber: '',
     name: '',
     phone: '',
     inBodyScans: 0,
@@ -21,18 +22,43 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [receipt, setReceipt] = useState<{
+  const [lastReceipt, setLastReceipt] = useState<{
     receiptNumber: number
     type: string
     amount: number
     itemDetails: string
     createdAt: string
   } | null>(null)
-  const receiptRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = useReactToPrint({
-    content: () => receiptRef.current,
-  })
+  // جلب رقم العضوية التالي
+  useEffect(() => {
+    const fetchNextNumber = async () => {
+      try {
+        const response = await fetch('/api/members/next-number')
+        const data = await response.json()
+        setNextMemberNumber(data.nextNumber)
+        setFormData(prev => ({ ...prev, memberNumber: data.nextNumber.toString() }))
+      } catch (error) {
+        console.error('Error fetching next number:', error)
+      }
+    }
+    fetchNextNumber()
+  }, [])
+
+  const handlePrint = () => {
+    if (!lastReceipt) return
+    
+    const details = JSON.parse(lastReceipt.itemDetails)
+    const html = generateReceiptHTML(
+      lastReceipt.receiptNumber,
+      lastReceipt.type,
+      lastReceipt.amount,
+      details,
+      new Date(lastReceipt.createdAt)
+    )
+    
+    printReceipt(html)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,8 +72,10 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
         body: JSON.stringify(formData),
       })
 
+      const result = await response.json()
+
       if (response.ok) {
-        const member = await response.json()
+        const member = result
         
         // جلب الإيصال
         try {
@@ -55,14 +83,30 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
           const receipts = await receiptsResponse.json()
           
           if (receipts.length > 0) {
-            setReceipt(receipts[0])
+            setLastReceipt(receipts[0])
+            
+            // طباعة تلقائية
+            setTimeout(() => {
+              const details = JSON.parse(receipts[0].itemDetails)
+              const html = generateReceiptHTML(
+                receipts[0].receiptNumber,
+                receipts[0].type,
+                receipts[0].amount,
+                details,
+                new Date(receipts[0].createdAt)
+              )
+              printReceipt(html)
+            }, 500)
           }
         } catch (err) {
           console.error('Error fetching receipt:', err)
         }
 
         // تصفير الفورم
+        const nextNumber = nextMemberNumber + 1
+        setNextMemberNumber(nextNumber)
         setFormData({
+          memberNumber: nextNumber.toString(),
           name: '',
           phone: '',
           inBodyScans: 0,
@@ -77,11 +121,11 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
         setTimeout(() => setMessage(''), 3000)
         onSuccess()
       } else {
-        setMessage('❌ فشل إضافة العضو')
+        setMessage(`❌ ${result.error || 'فشل إضافة العضو'}`)
       }
     } catch (error) {
       console.error(error)
-      setMessage('❌ حدث خطأ')
+      setMessage('❌ حدث خطأ في الاتصال')
     } finally {
       setLoading(false)
     }
@@ -97,6 +141,18 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
         <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">رقم العضوية</label>
+            <input
+              type="number"
+              required
+              value={formData.memberNumber}
+              onChange={(e) => setFormData({ ...formData, memberNumber: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-gray-50 font-bold text-blue-600"
+              placeholder="رقم العضوية"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-1">الاسم</label>
             <input
@@ -197,23 +253,13 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
         </button>
       </form>
 
-      {receipt && (
+      {lastReceipt && (
         <div className="mt-8">
-          <div className="hidden">
-            <Receipt
-              ref={receiptRef}
-              receiptNumber={receipt.receiptNumber}
-              type={receipt.type}
-              amount={receipt.amount}
-              details={JSON.parse(receipt.itemDetails)}
-              date={new Date(receipt.createdAt)}
-            />
-          </div>
           <button
             onClick={handlePrint}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
-            طباعة الإيصال
+            🖨️ طباعة الإيصال مرة أخرى
           </button>
         </div>
       )}

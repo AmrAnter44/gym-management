@@ -40,6 +40,12 @@ a {
   text-decoration: none;
 }
 
+/* إخفاء print-only في الشاشة العادية */
+.print-only {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 /* تنسيقات الطباعة */
 @media print {
   @page {
@@ -47,15 +53,38 @@ a {
     size: 80mm auto;
   }
   
+  /* إخفاء كل حاجة */
+  body * {
+    visibility: hidden !important;
+    display: none !important;
+  }
+  
+  /* إظهار الإيصال بس */
+  .print-only,
+  .print-only * {
+    visibility: visible !important;
+    display: block !important;
+  }
+  
+  .print-only {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
   body {
-    margin: 0;
-    padding: 0;
-    background: white;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
   
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 }
 
@@ -84,4 +113,29 @@ table {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* تحسين المدخلات */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* تحسين الأزرار */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* تحسين الجداول على الموبايل */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.875rem;
+  }
+  
+  th, td {
+    padding: 0.5rem !important;
+  }
 }

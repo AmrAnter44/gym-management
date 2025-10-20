@@ -84,49 +84,62 @@ export default function MembersPage() {
         <div className="text-center py-12">جاري التحميل...</div>
       ) : (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-4 py-3 text-right">رقم العضوية</th>
-                <th className="px-4 py-3 text-right">الاسم</th>
-                <th className="px-4 py-3 text-right">الهاتف</th>
-                <th className="px-4 py-3 text-right">InBody</th>
-                <th className="px-4 py-3 text-right">دعوات</th>
-                <th className="px-4 py-3 text-right">السعر</th>
-                <th className="px-4 py-3 text-right">المتبقي</th>
-                <th className="px-4 py-3 text-right">الحالة</th>
-                <th className="px-4 py-3 text-right">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.isArray(members) && members.map((member) => (
-                <tr key={member.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-3 font-bold text-blue-600">#{member.memberNumber}</td>
-                  <td className="px-4 py-3">{member.name}</td>
-                  <td className="px-4 py-3">{member.phone}</td>
-                  <td className="px-4 py-3">{member.inBodyScans}</td>
-                  <td className="px-4 py-3">{member.invitations}</td>
-                  <td className="px-4 py-3">{member.subscriptionPrice} ج.م</td>
-                  <td className="px-4 py-3 text-red-600">{member.remainingAmount} ج.م</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-sm ${
-                      member.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {member.isActive ? 'نشط' : 'منتهي'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleDelete(member.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      حذف
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-right">رقم العضوية</th>
+                  <th className="px-4 py-3 text-right">الاسم</th>
+                  <th className="px-4 py-3 text-right">الهاتف</th>
+                  <th className="px-4 py-3 text-right">InBody</th>
+                  <th className="px-4 py-3 text-right">دعوات</th>
+                  <th className="px-4 py-3 text-right">السعر</th>
+                  <th className="px-4 py-3 text-right">المتبقي</th>
+                  <th className="px-4 py-3 text-right">الحالة</th>
+                  <th className="px-4 py-3 text-right">تاريخ الانتهاء</th>
+                  <th className="px-4 py-3 text-right">إجراءات</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {Array.isArray(members) && members.map((member) => {
+                  const isExpired = member.expiryDate ? new Date(member.expiryDate) < new Date() : false
+                  return (
+                    <tr key={member.id} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3 font-bold text-blue-600">#{member.memberNumber}</td>
+                      <td className="px-4 py-3">{member.name}</td>
+                      <td className="px-4 py-3">{member.phone}</td>
+                      <td className="px-4 py-3">{member.inBodyScans}</td>
+                      <td className="px-4 py-3">{member.invitations}</td>
+                      <td className="px-4 py-3">{member.subscriptionPrice} ج.م</td>
+                      <td className="px-4 py-3 text-red-600">{member.remainingAmount} ج.م</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-sm ${
+                          member.isActive && !isExpired ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {member.isActive && !isExpired ? 'نشط' : 'منتهي'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {member.expiryDate ? (
+                          <span className={isExpired ? 'text-red-600' : ''}>
+                            {new Date(member.expiryDate).toLocaleDateString('ar-EG')}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleDelete(member.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          حذف
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {members.length === 0 && (
             <div className="text-center py-12 text-gray-500">

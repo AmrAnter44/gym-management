@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { useReactToPrint } from 'react-to-print'
+import { useEffect, useState } from 'react'
 import { Receipt } from '../../components/Receipt'
 
 interface PTSession {
@@ -34,11 +33,10 @@ export default function PTPage() {
     itemDetails: string
     createdAt: string
   } | null>(null)
-  const receiptRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = useReactToPrint({
-    content: () => receiptRef.current,
-  })
+  const handlePrint = () => {
+    window.print()
+  }
 
   const fetchSessions = async () => {
     try {
@@ -77,6 +75,9 @@ export default function PTPage() {
           
           if (receipts.length > 0) {
             setReceipt(receipts[0])
+            setTimeout(() => {
+              handlePrint()
+            }, 500)
           }
         } catch (err) {
           console.error('Error fetching receipt:', err)
@@ -278,17 +279,19 @@ export default function PTPage() {
       )}
 
       {receipt && (
-        <div className="mt-8">
-          <div className="hidden">
-            <Receipt
-              ref={receiptRef}
-              receiptNumber={receipt.receiptNumber}
-              type={receipt.type}
-              amount={receipt.amount}
-              details={JSON.parse(receipt.itemDetails)}
-              date={new Date(receipt.createdAt)}
-            />
-          </div>
+        <div className="print-only">
+          <Receipt
+            receiptNumber={receipt.receiptNumber}
+            type={receipt.type}
+            amount={receipt.amount}
+            details={JSON.parse(receipt.itemDetails)}
+            date={new Date(receipt.createdAt)}
+          />
+        </div>
+      )}
+
+      {receipt && (
+        <div className="mt-6">
           <button
             onClick={handlePrint}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
