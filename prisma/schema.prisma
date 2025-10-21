@@ -11,7 +11,7 @@ datasource db {
 
 model Member {
   id                String    @id @default(cuid())
-  memberNumber      Int       @unique // رقم العضوية القابل للتحكم
+  memberNumber      Int       @unique
   name              String
   phone             String
   inBodyScans       Int       @default(0)
@@ -20,7 +20,8 @@ model Member {
   remainingAmount   Float     @default(0)
   notes             String?
   isActive          Boolean   @default(true)
-  expiryDate        DateTime?
+  startDate         DateTime? // تاريخ بداية الاشتراك
+  expiryDate        DateTime? // تاريخ نهاية الاشتراك
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   receipts          Receipt[]

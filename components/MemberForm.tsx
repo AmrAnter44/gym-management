@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { printReceipt, generateReceiptHTML } from '../lib/printHelper'
+import { printReceiptFromData } from '../lib/printSystem'
+import { calculateDaysBetween, formatDurationInMonths } from '../lib/dateFormatter'
 
 interface MemberFormProps {
   onSuccess: () => void
@@ -18,17 +19,11 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     subscriptionPrice: 0,
     remainingAmount: 0,
     notes: '',
+    startDate: new Date().toISOString().split('T')[0], // اليوم
     expiryDate: '',
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [lastReceipt, setLastReceipt] = useState<{
-    receiptNumber: number
-    type: string
-    amount: number
-    itemDetails: string
-    createdAt: string
-  } | null>(null)
 
   // جلب رقم العضوية التالي
   useEffect(() => {
@@ -45,25 +40,42 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     fetchNextNumber()
   }, [])
 
-  const handlePrint = () => {
-    if (!lastReceipt) return
+  // حساب مدة الاشتراك بالأيام
+  const calculateDuration = () => {
+    if (!formData.startDate || !formData.expiryDate) return null
+    return calculateDaysBetween(formData.startDate, formData.expiryDate)
+  }
+
+  // حساب تاريخ النهاية من عدد الأشهر
+  const calculateExpiryFromMonths = (months: number) => {
+    if (!formData.startDate) return
     
-    const details = JSON.parse(lastReceipt.itemDetails)
-    const html = generateReceiptHTML(
-      lastReceipt.receiptNumber,
-      lastReceipt.type,
-      lastReceipt.amount,
-      details,
-      new Date(lastReceipt.createdAt)
-    )
+    const start = new Date(formData.startDate)
+    const expiry = new Date(start)
+    expiry.setMonth(expiry.getMonth() + months)
     
-    printReceipt(html)
+    setFormData(prev => ({ 
+      ...prev, 
+      expiryDate: expiry.toISOString().split('T')[0] 
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+
+    // التحقق من التواريخ
+    if (formData.startDate && formData.expiryDate) {
+      const start = new Date(formData.startDate)
+      const end = new Date(formData.expiryDate)
+      
+      if (end <= start) {
+        setMessage('❌ تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية')
+        setLoading(false)
+        return
+      }
+    }
 
     try {
       const response = await fetch('/api/members', {
@@ -77,25 +89,24 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
       if (response.ok) {
         const member = result
         
-        // جلب الإيصال
+        // جلب الإيصال وطباعته
         try {
           const receiptsResponse = await fetch(`/api/receipts?memberId=${member.id}`)
           const receipts = await receiptsResponse.json()
           
           if (receipts.length > 0) {
-            setLastReceipt(receipts[0])
+            const receipt = receipts[0]
+            const details = JSON.parse(receipt.itemDetails)
             
-            // طباعة تلقائية
+            // طباعة مباشرة
             setTimeout(() => {
-              const details = JSON.parse(receipts[0].itemDetails)
-              const html = generateReceiptHTML(
-                receipts[0].receiptNumber,
-                receipts[0].type,
-                receipts[0].amount,
+              printReceiptFromData(
+                receipt.receiptNumber,
+                receipt.type,
+                receipt.amount,
                 details,
-                new Date(receipts[0].createdAt)
+                receipt.createdAt
               )
-              printReceipt(html)
             }, 500)
           }
         } catch (err) {
@@ -114,6 +125,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
           subscriptionPrice: 0,
           remainingAmount: 0,
           notes: '',
+          startDate: new Date().toISOString().split('T')[0],
           expiryDate: '',
         })
         
@@ -131,6 +143,8 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     }
   }
 
+  const duration = calculateDuration()
+
   return (
     <div>
       {message && (
@@ -139,7 +153,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-4xl">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">رقم العضوية</label>
@@ -221,16 +235,79 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
               placeholder="0.00"
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">تاريخ الانتهاء</label>
-            <input
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg"
-            />
+        {/* قسم التواريخ */}
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+          <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+            <span>📅</span>
+            <span>فترة الاشتراك</span>
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                تاريخ البداية <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                className="w-full px-3 py-2 border-2 rounded-lg font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">التنسيق: سنة-شهر-يوم</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                تاريخ الانتهاء <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.expiryDate}
+                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                className="w-full px-3 py-2 border-2 rounded-lg font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">التنسيق: سنة-شهر-يوم</p>
+            </div>
           </div>
+
+          {/* أزرار سريعة */}
+          <div className="mb-3">
+            <p className="text-sm font-medium mb-2">⚡ إضافة سريعة:</p>
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3, 6, 9, 12].map(months => (
+                <button
+                  key={months}
+                  type="button"
+                  onClick={() => calculateExpiryFromMonths(months)}
+                  className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm transition"
+                >
+                  + {months} {months === 1 ? 'شهر' : 'أشهر'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {duration !== null && (
+            <div className="bg-white border-2 border-blue-300 rounded-lg p-3">
+              {duration > 0 ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">⏱️</span>
+                  <div>
+                    <p className="font-bold text-blue-800">مدة الاشتراك:</p>
+                    <p className="text-lg font-mono">
+                      {formatDurationInMonths(duration)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-red-600">❌ تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div>
@@ -252,17 +329,6 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
           {loading ? 'جاري الحفظ...' : 'إضافة عضو'}
         </button>
       </form>
-
-      {lastReceipt && (
-        <div className="mt-8">
-          <button
-            onClick={handlePrint}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-          >
-            🖨️ طباعة الإيصال مرة أخرى
-          </button>
-        </div>
-      )}
     </div>
   )
 }

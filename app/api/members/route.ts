@@ -10,6 +10,7 @@ export async function GET() {
     })
     return NextResponse.json(members)
   } catch (error) {
+    console.error('Error fetching members:', error)
     return NextResponse.json({ error: 'فشل جلب الأعضاء' }, { status: 500 })
   }
 }
@@ -18,7 +19,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, expiryDate } = body
+    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, startDate, expiryDate } = body
+
+    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, startDate, expiryDate })
 
     // التحقق من أن رقم العضوية غير مستخدم
     if (memberNumber) {
@@ -27,8 +30,22 @@ export async function POST(request: Request) {
       })
       
       if (existingMember) {
+        console.error('❌ رقم العضوية مستخدم:', memberNumber)
         return NextResponse.json(
           { error: `رقم العضوية ${memberNumber} مستخدم بالفعل` }, 
+          { status: 400 }
+        )
+      }
+    }
+
+    // التحقق من التواريخ
+    if (startDate && expiryDate) {
+      const start = new Date(startDate)
+      const end = new Date(expiryDate)
+      
+      if (end <= start) {
+        return NextResponse.json(
+          { error: 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية' },
           { status: 400 }
         )
       }
@@ -45,48 +62,70 @@ export async function POST(request: Request) {
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
         notes,
+        startDate: startDate ? new Date(startDate) : null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
       },
     })
 
-    // إنشاء إيصال تلقائياً إذا كان هناك دفع
-    if (subscriptionPrice > 0) {
-      // جلب رقم الإيصال الحالي
+    console.log('✅ تم إنشاء العضو:', member.id)
+
+    // إنشاء إيصال دائماً
+    try {
       let counter = await prisma.receiptCounter.findUnique({ where: { id: 1 } })
       
       if (!counter) {
+        console.log('📊 إنشاء عداد الإيصالات لأول مرة')
         counter = await prisma.receiptCounter.create({
           data: { id: 1, current: 1000 }
         })
       }
 
-      // إنشاء الإيصال
-      await prisma.receipt.create({
+      console.log('🧾 رقم الإيصال التالي:', counter.current)
+
+      const paidAmount = subscriptionPrice - (remainingAmount || 0)
+
+      // حساب مدة الاشتراك
+      let subscriptionDays = null
+      if (startDate && expiryDate) {
+        const start = new Date(startDate)
+        const end = new Date(expiryDate)
+        subscriptionDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+      }
+
+      const receipt = await prisma.receipt.create({
         data: {
           receiptNumber: counter.current,
           type: 'Member',
-          amount: subscriptionPrice - remainingAmount,
+          amount: paidAmount,
           itemDetails: JSON.stringify({
             memberNumber: member.memberNumber,
             memberName: name,
             subscriptionPrice,
-            paidAmount: subscriptionPrice - remainingAmount,
-            remainingAmount,
+            paidAmount,
+            remainingAmount: remainingAmount || 0,
+            startDate: startDate,
+            expiryDate: expiryDate,
+            subscriptionDays: subscriptionDays,
           }),
           memberId: member.id,
         },
       })
 
-      // تحديث العداد
+      console.log('✅ تم إنشاء الإيصال:', receipt.receiptNumber)
+
       await prisma.receiptCounter.update({
         where: { id: 1 },
         data: { current: counter.current + 1 }
       })
+
+      console.log('🔄 تم تحديث عداد الإيصالات إلى:', counter.current + 1)
+    } catch (receiptError) {
+      console.error('❌ خطأ في إنشاء الإيصال:', receiptError)
     }
 
     return NextResponse.json(member, { status: 201 })
   } catch (error) {
-    console.error(error)
+    console.error('❌ خطأ في إضافة العضو:', error)
     return NextResponse.json({ error: 'فشل إضافة العضو' }, { status: 500 })
   }
 }
@@ -97,16 +136,23 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { id, ...data } = body
 
+    const updateData: any = { ...data }
+    
+    if (data.startDate) {
+      updateData.startDate = new Date(data.startDate)
+    }
+    if (data.expiryDate) {
+      updateData.expiryDate = new Date(data.expiryDate)
+    }
+
     const member = await prisma.member.update({
       where: { id },
-      data: {
-        ...data,
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : null
-      },
+      data: updateData,
     })
 
     return NextResponse.json(member)
   } catch (error) {
+    console.error('Error updating member:', error)
     return NextResponse.json({ error: 'فشل تحديث العضو' }, { status: 500 })
   }
 }
@@ -124,6 +170,7 @@ export async function DELETE(request: Request) {
     await prisma.member.delete({ where: { id } })
     return NextResponse.json({ message: 'تم الحذف بنجاح' })
   } catch (error) {
+    console.error('Error deleting member:', error)
     return NextResponse.json({ error: 'فشل حذف العضو' }, { status: 500 })
   }
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import MemberForm from '../../components/MemberForm'
+import RenewalForm from '../../components/RenewalForm'
+import { formatDateYMD, calculateRemainingDays } from '../../lib/dateFormatter'
 
 interface Member {
   id: string
@@ -14,6 +16,7 @@ interface Member {
   remainingAmount: number
   notes?: string
   isActive: boolean
+  startDate?: string
   expiryDate?: string
   createdAt: string
 }
@@ -21,6 +24,8 @@ interface Member {
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [showRenewalForm, setShowRenewalForm] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchMembers = async () => {
@@ -28,7 +33,6 @@ export default function MembersPage() {
       const response = await fetch('/api/members')
       const data = await response.json()
       
-      // تأكد إن البيانات array
       if (Array.isArray(data)) {
         setMembers(data)
       } else {
@@ -56,6 +60,16 @@ export default function MembersPage() {
     } catch (error) {
       console.error('Error deleting member:', error)
     }
+  }
+
+  const handleRenewal = (member: Member) => {
+    setSelectedMember(member)
+    setShowRenewalForm(true)
+  }
+
+  const closeRenewalForm = () => {
+    setShowRenewalForm(false)
+    setSelectedMember(null)
   }
 
   return (
@@ -96,6 +110,7 @@ export default function MembersPage() {
                   <th className="px-4 py-3 text-right">السعر</th>
                   <th className="px-4 py-3 text-right">المتبقي</th>
                   <th className="px-4 py-3 text-right">الحالة</th>
+                  <th className="px-4 py-3 text-right">تاريخ البداية</th>
                   <th className="px-4 py-3 text-right">تاريخ الانتهاء</th>
                   <th className="px-4 py-3 text-right">إجراءات</th>
                 </tr>
@@ -103,6 +118,9 @@ export default function MembersPage() {
               <tbody>
                 {Array.isArray(members) && members.map((member) => {
                   const isExpired = member.expiryDate ? new Date(member.expiryDate) < new Date() : false
+                  const daysRemaining = calculateRemainingDays(member.expiryDate)
+                  const isExpiringSoon = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
+                  
                   return (
                     <tr key={member.id} className="border-t hover:bg-gray-50">
                       <td className="px-4 py-3 font-bold text-blue-600">#{member.memberNumber}</td>
@@ -120,19 +138,46 @@ export default function MembersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
+                        <span className="text-gray-700 font-mono">
+                          {formatDateYMD(member.startDate)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
                         {member.expiryDate ? (
-                          <span className={isExpired ? 'text-red-600' : ''}>
-                            {new Date(member.expiryDate).toLocaleDateString('ar-EG')}
-                          </span>
+                          <div>
+                            <span className={`font-mono ${isExpired ? 'text-red-600 font-bold' : isExpiringSoon ? 'text-orange-600 font-bold' : ''}`}>
+                              {formatDateYMD(member.expiryDate)}
+                            </span>
+                            {daysRemaining !== null && daysRemaining > 0 && (
+                              <p className={`text-xs ${isExpiringSoon ? 'text-orange-600' : 'text-gray-500'}`}>
+                                {isExpiringSoon && '⚠️ '} باقي {daysRemaining} يوم
+                              </p>
+                            )}
+                            {isExpired && daysRemaining !== null && (
+                              <p className="text-xs text-red-600">
+                                ❌ منتهي منذ {Math.abs(daysRemaining)} يوم
+                              </p>
+                            )}
+                          </div>
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleDelete(member.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          حذف
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRenewal(member)}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition"
+                            title="تجديد الاشتراك"
+                          >
+                            🔄 تجديد
+                          </button>
+                          <button
+                            onClick={() => handleDelete(member.id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="حذف العضو"
+                          >
+                            حذف
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -147,6 +192,15 @@ export default function MembersPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* نموذج التجديد */}
+      {showRenewalForm && selectedMember && (
+        <RenewalForm
+          member={selectedMember}
+          onSuccess={fetchMembers}
+          onClose={closeRenewalForm}
+        />
       )}
     </div>
   )
