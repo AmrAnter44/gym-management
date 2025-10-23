@@ -88,3 +88,29 @@ model MemberCounter {
   id      Int @id @default(1)
   current Int @default(1000)
 }
+model Staff {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String?
+  position  String?
+  salary    Float?
+  notes     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expenses  Expense[]
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  type        String   // "gym_expense" أو "staff_loan"
+  amount      Float
+  description String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+  isPaid      Boolean  @default(false)
+}
