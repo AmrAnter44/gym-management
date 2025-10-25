@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { printReceiptFromData } from '../lib/printSystem'
 import { calculateDaysBetween, formatDurationInMonths } from '../lib/dateFormatter'
-import PaymentMethodSelector from './PaymentMethodSelector'
+import PaymentMethodSelector from '../components/Paymentmethodselector '
 
 interface MemberFormProps {
   onSuccess: () => void
@@ -22,7 +22,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     notes: '',
     startDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
-    paymentMethod: 'cash', // الافتراضي كاش
+    paymentMethod: 'cash',
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -100,7 +100,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
             const receipt = receipts[0]
             const details = JSON.parse(receipt.itemDetails)
             
-            // طباعة مباشرة - استخدام paymentMethod من الـ details أو من الـ receipt أو القيمة الافتراضية
+            // طباعة مباشرة مع paymentMethod
             setTimeout(() => {
               printReceiptFromData(
                 receipt.receiptNumber,
@@ -108,7 +108,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
                 receipt.amount,
                 details,
                 receipt.createdAt,
-                details.paymentMethod || receipt.paymentMethod || formData.paymentMethod
+                formData.paymentMethod
               )
             }, 500)
           }

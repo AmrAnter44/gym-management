@@ -29,6 +29,17 @@ function formatDateYMD(dateString: string | Date): string {
   return `${year}-${month}-${day}`
 }
 
+// دالة للحصول على اسم طريقة الدفع بالعربية
+function getPaymentMethodLabel(method: string): string {
+  const methods: { [key: string]: string } = {
+    'cash': 'كاش 💵',
+    'visa': 'فيزا 💳',
+    'instapay': 'إنستا باي 📱',
+    'wallet': 'محفظة إلكترونية 💰'
+  }
+  return methods[method] || 'كاش 💵'
+}
+
 // دالة لإنشاء HTML الإيصال
 function generateReceiptHTML(data: ReceiptData): string {
   const { receiptNumber, type, amount, details, date } = data
@@ -43,6 +54,10 @@ function generateReceiptHTML(data: ReceiptData): string {
 
   // التحقق إذا كان إيصال تجديد
   const isRenewal = details.isRenewal === true
+  
+  // طريقة الدفع
+  const paymentMethod = details.paymentMethod || 'cash'
+  const paymentMethodLabel = getPaymentMethodLabel(paymentMethod)
 
   return `
 <!DOCTYPE html>
@@ -94,6 +109,17 @@ function generateReceiptHTML(data: ReceiptData): string {
     
     .renewal-badge {
       background: #10b981;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      display: inline-block;
+      margin: 8px 0;
+    }
+    
+    .payment-method-badge {
+      background: #3b82f6;
       color: white;
       padding: 6px 12px;
       border-radius: 6px;
@@ -223,6 +249,7 @@ function generateReceiptHTML(data: ReceiptData): string {
     <p>إيصال استلام</p>
     <p>${getTypeLabel(type)}</p>
     ${isRenewal ? '<div class="renewal-badge">🔄 تجديد اشتراك</div>' : ''}
+    <div class="payment-method-badge">${paymentMethodLabel}</div>
   </div>
 
   <div class="info-row">
@@ -384,15 +411,21 @@ export function printReceiptFromData(
   type: string,
   amount: number,
   details: any,
-  date: Date | string
+  date: Date | string,
+  paymentMethod?: string
 ): void {
   const dateObj = date instanceof Date ? date : new Date(date)
+  
+  // إضافة paymentMethod إلى details إذا تم تمريره
+  const enrichedDetails = paymentMethod 
+    ? { ...details, paymentMethod }
+    : details
   
   printReceipt({
     receiptNumber,
     type,
     amount,
-    details,
+    details: enrichedDetails,
     date: dateObj
   })
 }

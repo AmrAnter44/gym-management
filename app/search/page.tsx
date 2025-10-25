@@ -1,22 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 interface SearchResult {
-  type: 'member' | 'pt' | 'receipt'
+  type: 'member' | 'pt'
   data: any
 }
 
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchType, setSearchType] = useState<'all' | 'members' | 'phone'>('all')
+  const [searchType, setSearchType] = useState<'all' | 'members' | 'phone'>('members')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [lastSearchTime, setLastSearchTime] = useState<Date | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+
+  // Auto-focus عند تحميل الصفحة
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  // إنشاء صوت تنبيه قوي وواضح
+  const playSound = (isSuccess: boolean) => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+
+      const ctx = audioContextRef.current
+      const oscillator = ctx.createOscillator()
+      const gainNode = ctx.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(ctx.destination)
+
+      if (isSuccess) {
+        // صوت نجاح: نغمتين متتاليتين عاليتين (دو - صول)
+        oscillator.frequency.setValueAtTime(523.25, ctx.currentTime) // C5
+        oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.1) // G5
+        gainNode.gain.setValueAtTime(0.7, ctx.currentTime) // حجم أعلى
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
+        oscillator.start(ctx.currentTime)
+        oscillator.stop(ctx.currentTime + 0.3)
+      } else {
+        // صوت فشل: نغمة منخفضة
+        oscillator.frequency.setValueAtTime(200, ctx.currentTime)
+        gainNode.gain.setValueAtTime(0.7, ctx.currentTime) // حجم أعلى
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+        oscillator.start(ctx.currentTime)
+        oscillator.stop(ctx.currentTime + 0.5)
+      }
+    } catch (error) {
+      console.error('Error playing sound:', error)
+    }
+  }
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
-      alert('يرجى إدخال كلمة البحث')
+      playSound(false)
       return
     }
 
@@ -82,9 +125,27 @@ export default function SearchPage() {
       }
 
       setResults(foundResults)
+      setLastSearchTime(new Date())
+
+      // تشغيل صوت حسب النتيجة
+      if (foundResults.length > 0) {
+        playSound(true) // صوت نجاح
+      } else {
+        playSound(false) // صوت فشل
+      }
+
+      // مسح الحقل وإعادة التركيز بعد 2 ثانية
+      setTimeout(() => {
+        setSearchTerm('')
+        setResults([])
+        setSearched(false)
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }, 2000)
+
     } catch (error) {
       console.error('Search error:', error)
-      alert('حدث خطأ في البحث')
+      playSound(false)
     } finally {
       setLoading(false)
     }
@@ -96,138 +157,219 @@ export default function SearchPage() {
     }
   }
 
+  const calculateRemainingDays = (expiryDate: string | null | undefined): number | null => {
+    if (!expiryDate) return null
+    
+    const expiry = new Date(expiryDate)
+    const today = new Date()
+    const diffTime = expiry.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    return diffDays
+  }
+
   return (
-    <div className="container mx-auto p-6" dir="rtl">
+    <div className="container mx-auto p-6 min-h-screen" dir="rtl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">🔍 البحث السريع</h1>
-        <p className="text-gray-600">ابحث عن الأعضاء والعملاء حسب الاسم أو رقم الهاتف أو رقم العضوية</p>
+        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+          <span>🔍</span>
+          <span>التحقق السريع من الاشتراكات</span>
+        </h1>
+        <p className="text-gray-600">سكان سريع - الصوت يؤكد النتيجة تلقائياً</p>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium mb-2">كلمة البحث</label>
+      <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* حقل البحث - أكبر وأوضح */}
+          <div className="md:col-span-3">
+            <label className="block text-lg font-bold mb-3 text-blue-800">
+              📱 أدخل رقم العضوية أو الهاتف أو الاسم
+            </label>
             <input
+              ref={inputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="ابحث بالاسم، رقم الهاتف، أو رقم العضوية..."
-              className="w-full px-4 py-3 border rounded-lg text-lg"
+              className="w-full px-6 py-5 border-4 border-blue-300 rounded-xl text-3xl font-bold text-center focus:border-blue-600 focus:ring-4 focus:ring-blue-200 transition"
+              placeholder="اسكن أو اكتب هنا..."
               autoFocus
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-2">نوع البحث</label>
+            <label className="block text-lg font-bold mb-3 text-blue-800">نوع البحث</label>
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value as any)}
-              className="w-full px-4 py-3 border rounded-lg text-lg"
+              className="w-full px-4 py-5 border-4 border-blue-300 rounded-xl text-xl font-bold focus:border-blue-600"
             >
+              <option value="members">أعضاء فقط</option>
               <option value="all">بحث شامل</option>
-              <option value="members">الأعضاء فقط</option>
               <option value="phone">بحث بالهاتف</option>
             </select>
           </div>
         </div>
 
-        <button
-          onClick={handleSearch}
-          disabled={loading || !searchTerm.trim()}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-lg font-medium"
-        >
-          {loading ? 'جاري البحث...' : '🔍 بحث'}
-        </button>
+        {/* معلومات مساعدة */}
+        <div className="bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">💡</span>
+            <div>
+              <p className="font-bold text-blue-800">نصائح الاستخدام:</p>
+              <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                <li>• اسكن الباركود أو اكتب رقم العضوية واضغط Enter</li>
+                <li>• صوت عالي = تم العثور على العضو ✅</li>
+                <li>• صوت منخفض = لم يتم العثور ❌</li>
+                <li>• الحقل يُمسح تلقائياً بعد ثانيتين للسكان التالي</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* عرض آخر عملية بحث */}
+      {lastSearchTime && (
+        <div className="bg-gray-100 p-3 rounded-lg text-center text-sm text-gray-600 mb-4">
+          آخر بحث: {lastSearchTime.toLocaleTimeString('ar-EG')}
+        </div>
+      )}
+
+      {/* نتائج البحث */}
       {searched && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-4 border-green-200 animate-fadeIn">
           {loading ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="animate-spin text-4xl mb-4">⏳</div>
-              <p>جاري البحث...</p>
+            <div className="text-center py-20">
+              <div className="inline-block animate-spin text-6xl mb-4">⏳</div>
+              <p className="text-2xl text-gray-600 font-bold">جاري البحث...</p>
             </div>
           ) : results.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-6xl mb-4">🔍</div>
-              <p className="text-xl">لا توجد نتائج للبحث عن "{searchTerm}"</p>
+            <div className="text-center py-20 bg-red-50">
+              <div className="text-8xl mb-6">❌</div>
+              <p className="text-3xl font-bold text-red-600 mb-3">لم يتم العثور على نتائج</p>
+              <p className="text-xl text-red-500">للبحث عن "{searchTerm}"</p>
             </div>
           ) : (
-            <>
-              <div className="mb-4">
-                <h2 className="text-xl font-bold">نتائج البحث ({results.length})</h2>
+            <div className="p-6">
+              <div className="bg-green-100 border-4 border-green-500 rounded-xl p-6 mb-6 text-center">
+                <div className="text-8xl mb-4">✅</div>
+                <p className="text-3xl font-bold text-green-800">تم العثور على {results.length} نتيجة</p>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {results.map((result, index) => (
-                  <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div key={index} className="border-4 border-blue-200 rounded-2xl p-6 hover:bg-blue-50 transition">
                     {result.type === 'member' && (
                       <div>
-                        <div className="flex justify-between items-start mb-2">
+                        <div className="flex justify-between items-start mb-4">
                           <div>
-                            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm font-medium">
-                              عضو
+                            <span className="bg-blue-500 text-white px-4 py-2 rounded-lg text-lg font-bold">
+                              👤 عضو
                             </span>
-                            <h3 className="text-xl font-bold mt-2">{result.data.name}</h3>
+                            <h3 className="text-3xl font-bold mt-3">{result.data.name}</h3>
                           </div>
-                          <span className="text-3xl font-bold text-blue-600">
+                          <span className="text-5xl font-bold text-blue-600">
                             #{result.data.memberNumber}
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                          <div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الهاتف</p>
-                            <p className="font-medium">{result.data.phone}</p>
+                            <p className="text-xl font-bold">{result.data.phone}</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">السعر</p>
-                            <p className="font-medium">{result.data.subscriptionPrice} ج.م</p>
+                            <p className="text-xl font-bold">{result.data.subscriptionPrice} ج.م</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">المتبقي</p>
-                            <p className="font-medium text-red-600">{result.data.remainingAmount} ج.م</p>
+                            <p className="text-xl font-bold text-red-600">{result.data.remainingAmount} ج.م</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الحالة</p>
-                            <span className={`px-2 py-1 rounded text-sm ${
-                              result.data.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            <span className={`inline-block px-3 py-1 rounded-lg text-lg font-bold ${
+                              result.data.isActive && (!result.data.expiryDate || new Date(result.data.expiryDate) >= new Date())
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-red-500 text-white'
                             }`}>
-                              {result.data.isActive ? 'نشط' : 'منتهي'}
+                              {result.data.isActive && (!result.data.expiryDate || new Date(result.data.expiryDate) >= new Date()) ? '✅ نشط' : '❌ منتهي'}
                             </span>
                           </div>
                         </div>
+
+                        {result.data.expiryDate && (
+                          <div className="mt-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">تاريخ الانتهاء</p>
+                                <p className="text-xl font-bold text-gray-800">
+                                  {new Date(result.data.expiryDate).toLocaleDateString('ar-EG')}
+                                </p>
+                              </div>
+                              {(() => {
+                                const days = calculateRemainingDays(result.data.expiryDate)
+                                if (days === null) return null
+                                
+                                if (days < 0) {
+                                  return (
+                                    <div className="text-right">
+                                      <p className="text-red-600 font-bold text-2xl">
+                                        ❌ منتهي منذ {Math.abs(days)} يوم
+                                      </p>
+                                    </div>
+                                  )
+                                } else if (days <= 7) {
+                                  return (
+                                    <div className="text-right">
+                                      <p className="text-orange-600 font-bold text-2xl">
+                                        ⚠️ باقي {days} يوم فقط
+                                      </p>
+                                    </div>
+                                  )
+                                } else {
+                                  return (
+                                    <div className="text-right">
+                                      <p className="text-green-600 font-bold text-2xl">
+                                        ✅ باقي {days} يوم
+                                      </p>
+                                    </div>
+                                  )
+                                }
+                              })()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     
                     {result.type === 'pt' && (
                       <div>
-                        <div className="flex justify-between items-start mb-2">
+                        <div className="flex justify-between items-start mb-4">
                           <div>
-                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded text-sm font-medium">
-                              PT
+                            <span className="bg-green-500 text-white px-4 py-2 rounded-lg text-lg font-bold">
+                              💪 PT
                             </span>
-                            <h3 className="text-xl font-bold mt-2">{result.data.clientName}</h3>
+                            <h3 className="text-3xl font-bold mt-3">{result.data.clientName}</h3>
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                          <div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الهاتف</p>
-                            <p className="font-medium">{result.data.phone}</p>
+                            <p className="text-xl font-bold">{result.data.phone}</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">المدرب</p>
-                            <p className="font-medium">{result.data.coachName}</p>
+                            <p className="text-xl font-bold">{result.data.coachName}</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الجلسات المتبقية</p>
-                            <p className="font-medium text-green-600">{result.data.sessionsRemaining}</p>
+                            <p className="text-xl font-bold text-green-600">{result.data.sessionsRemaining}</p>
                           </div>
-                          <div>
+                          <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">سعر الجلسة</p>
-                            <p className="font-medium">{result.data.pricePerSession} ج.م</p>
+                            <p className="text-xl font-bold">{result.data.pricePerSession} ج.م</p>
                           </div>
                         </div>
                       </div>
@@ -235,10 +377,27 @@ export default function SearchPage() {
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }

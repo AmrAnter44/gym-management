@@ -9,6 +9,7 @@ interface ReceiptData {
   type: string
   amount: number
   itemDetails: string
+  paymentMethod: string
   createdAt: string
   memberId?: string
   ptId?: string
@@ -20,6 +21,7 @@ export default function ReceiptsPage() {
   const [filteredReceipts, setFilteredReceipts] = useState<ReceiptData[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<string>('all')
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
   const [nextReceiptNumber, setNextReceiptNumber] = useState<number>(1000)
@@ -60,6 +62,11 @@ export default function ReceiptsPage() {
       filtered = filtered.filter(r => r.type === filterType)
     }
 
+    // Filter by payment method
+    if (filterPaymentMethod !== 'all') {
+      filtered = filtered.filter(r => r.paymentMethod === filterPaymentMethod)
+    }
+
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(r => {
@@ -94,7 +101,7 @@ export default function ReceiptsPage() {
     }
 
     setFilteredReceipts(filtered)
-  }, [filterType, searchTerm, dateFilter, receipts])
+  }, [filterType, filterPaymentMethod, searchTerm, dateFilter, receipts])
 
   const getTypeLabel = (type: string) => {
     const types: { [key: string]: string } = {
@@ -116,6 +123,26 @@ export default function ReceiptsPage() {
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
 
+  const getPaymentMethodLabel = (method: string) => {
+    const methods: { [key: string]: string } = {
+      'cash': 'كاش 💵',
+      'visa': 'فيزا 💳',
+      'instapay': 'إنستا باي 📱',
+      'wallet': 'محفظة 💰'
+    }
+    return methods[method] || 'كاش 💵'
+  }
+
+  const getPaymentMethodColor = (method: string) => {
+    const colors: { [key: string]: string } = {
+      'cash': 'bg-green-100 text-green-800 border-green-300',
+      'visa': 'bg-blue-100 text-blue-800 border-blue-300',
+      'instapay': 'bg-purple-100 text-purple-800 border-purple-300',
+      'wallet': 'bg-orange-100 text-orange-800 border-orange-300'
+    }
+    return colors[method] || 'bg-gray-100 text-gray-800 border-gray-300'
+  }
+
   const getTotalRevenue = () => {
     return filteredReceipts.reduce((sum, r) => sum + r.amount, 0)
   }
@@ -125,6 +152,12 @@ export default function ReceiptsPage() {
     return receipts.filter(r => new Date(r.createdAt).toDateString() === today).length
   }
 
+  const getRevenueByPaymentMethod = (method: string) => {
+    return receipts
+      .filter(r => r.paymentMethod === method)
+      .reduce((sum, r) => sum + r.amount, 0)
+  }
+
   const handlePrintReceipt = (receipt: ReceiptData) => {
     const details = JSON.parse(receipt.itemDetails)
     printReceiptFromData(
@@ -132,7 +165,8 @@ export default function ReceiptsPage() {
       receipt.type,
       receipt.amount,
       details,
-      receipt.createdAt
+      receipt.createdAt,
+      receipt.paymentMethod
     )
   }
 
@@ -184,9 +218,72 @@ export default function ReceiptsPage() {
         </div>
       </div>
 
+      {/* Payment Methods Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white border-2 border-green-200 p-4 rounded-xl shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-600">كاش</p>
+              <p className="text-2xl font-bold text-green-600">
+                {getRevenueByPaymentMethod('cash').toFixed(0)} ج.م
+              </p>
+            </div>
+            <span className="text-4xl">💵</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            {receipts.filter(r => r.paymentMethod === 'cash').length} إيصال
+          </p>
+        </div>
+
+        <div className="bg-white border-2 border-blue-200 p-4 rounded-xl shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-600">فيزا</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {getRevenueByPaymentMethod('visa').toFixed(0)} ج.م
+              </p>
+            </div>
+            <span className="text-4xl">💳</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            {receipts.filter(r => r.paymentMethod === 'visa').length} إيصال
+          </p>
+        </div>
+
+        <div className="bg-white border-2 border-purple-200 p-4 rounded-xl shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-600">إنستا باي</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {getRevenueByPaymentMethod('instapay').toFixed(0)} ج.م
+              </p>
+            </div>
+            <span className="text-4xl">📱</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            {receipts.filter(r => r.paymentMethod === 'instapay').length} إيصال
+          </p>
+        </div>
+
+        <div className="bg-white border-2 border-orange-200 p-4 rounded-xl shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-gray-600">محفظة</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {getRevenueByPaymentMethod('wallet').toFixed(0)} ج.م
+              </p>
+            </div>
+            <span className="text-4xl">💰</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            {receipts.filter(r => r.paymentMethod === 'wallet').length} إيصال
+          </p>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white p-5 rounded-xl shadow-md mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium mb-2">🔍 البحث</label>
@@ -195,7 +292,7 @@ export default function ReceiptsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="رقم الإيصال، الاسم، رقم العضوية..."
+              placeholder="رقم الإيصال، الاسم..."
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -213,6 +310,22 @@ export default function ReceiptsPage() {
               <option value="PT">التدريب الشخصي</option>
               <option value="DayUse">يوم استخدام</option>
               <option value="InBody">InBody</option>
+            </select>
+          </div>
+
+          {/* Payment Method Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2">💳 طريقة الدفع</label>
+            <select
+              value={filterPaymentMethod}
+              onChange={(e) => setFilterPaymentMethod(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">جميع الطرق</option>
+              <option value="cash">كاش 💵</option>
+              <option value="visa">فيزا 💳</option>
+              <option value="instapay">إنستا باي 📱</option>
+              <option value="wallet">محفظة 💰</option>
             </select>
           </div>
 
@@ -237,6 +350,7 @@ export default function ReceiptsPage() {
               onClick={() => {
                 setSearchTerm('')
                 setFilterType('all')
+                setFilterPaymentMethod('all')
                 setDateFilter('all')
               }}
               className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition font-medium"
@@ -263,6 +377,7 @@ export default function ReceiptsPage() {
                   <th className="px-6 py-4 text-right font-bold">النوع</th>
                   <th className="px-6 py-4 text-right font-bold">التفاصيل</th>
                   <th className="px-6 py-4 text-right font-bold">المبلغ</th>
+                  <th className="px-6 py-4 text-right font-bold">طريقة الدفع</th>
                   <th className="px-6 py-4 text-right font-bold">التاريخ</th>
                   <th className="px-6 py-4 text-right font-bold">إجراءات</th>
                 </tr>
@@ -318,6 +433,11 @@ export default function ReceiptsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-2 rounded-lg text-sm font-bold border-2 ${getPaymentMethodColor(receipt.paymentMethod)}`}>
+                          {getPaymentMethodLabel(receipt.paymentMethod)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         <div>
                           <p className="font-medium">
@@ -369,6 +489,7 @@ export default function ReceiptsPage() {
             <h4 className="font-bold text-blue-800 mb-2">نصائح سريعة</h4>
             <ul className="space-y-1 text-sm text-blue-800">
               <li>• استخدم البحث للعثور على إيصال محدد برقمه أو باسم العميل</li>
+              <li>• فلتر حسب طريقة الدفع لمعرفة الإيرادات من كل وسيلة</li>
               <li>• اطبع الإيصال مباشرة من زر الطباعة 🖨️</li>
               <li>• رقم الإيصال مستقل ومتسلسل لجميع العمليات</li>
               <li>• يمكنك تغيير رقم بداية الإيصالات من صفحة <a href="/settings" className="underline font-bold">الإعدادات ⚙️</a></li>

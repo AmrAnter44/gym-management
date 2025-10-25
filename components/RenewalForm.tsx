@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { printReceiptFromData } from '../lib/printSystem'
 import { calculateDaysBetween, formatDateYMD, formatDurationInMonths } from '../lib/dateFormatter'
-import PaymentMethodSelector from './PaymentMethodSelector'
+import PaymentMethodSelector from '../components/Paymentmethodselector '
 
 interface Member {
   id: string
@@ -41,7 +41,7 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
     startDate: getDefaultStartDate(),
     expiryDate: '',
     notes: '',
-    paymentMethod: 'cash', // الافتراضي كاش
+    paymentMethod: 'cash',
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
