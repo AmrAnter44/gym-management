@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ReceiptToPrint } from '../../components/ReceiptToPrint'
+import PaymentMethodSelector from '../../components/Paymentmethodselector '
 
 interface PTSession {
   id: string
@@ -25,6 +26,7 @@ export default function PTPage() {
     sessionsPurchased: 0,
     coachName: '',
     pricePerSession: 0,
+    paymentMethod: 'cash', // إضافة طريقة الدفع
   })
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
@@ -71,7 +73,8 @@ export default function PTPage() {
               type: receipt.type,
               amount: receipt.amount,
               details: JSON.parse(receipt.itemDetails),
-              date: new Date(receipt.createdAt)
+              date: new Date(receipt.createdAt),
+              paymentMethod: receipt.paymentMethod
             })
             setShowReceipt(true)
           }
@@ -85,6 +88,7 @@ export default function PTPage() {
           sessionsPurchased: 0,
           coachName: '',
           pricePerSession: 0,
+          paymentMethod: 'cash',
         })
         
         setMessage('✅ تم إضافة الجلسة بنجاح!')
@@ -210,6 +214,15 @@ export default function PTPage() {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* قسم طريقة الدفع */}
+            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
+              <PaymentMethodSelector
+                value={formData.paymentMethod}
+                onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
+                required
+              />
             </div>
 
             <button

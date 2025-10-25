@@ -14,6 +14,9 @@ export default function Navbar() {
     { href: '/visitors', label: 'الزوار', icon: '🚶' },
     { href: '/receipts', label: 'الإيصالات', icon: '🧾' },
     { href: '/search', label: 'بحث', icon: '🔍' },
+    { href: '/staff', label: 'الموظفين', icon: '👨‍💼' },
+{ href: '/expenses', label: 'المصاريف', icon: '💸' },
+{ href: '/closing', label: 'التقفيل', icon: '💰' },
     { href: '/settings', label: 'إعدادات', icon: '⚙️' },
   ]
 

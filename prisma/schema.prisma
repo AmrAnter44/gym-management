@@ -66,6 +66,7 @@ model Receipt {
   type          String        // "Member", "PT", "DayUse", "InBody"
   amount        Float
   itemDetails   String        // JSON string with payment details
+  paymentMethod String        @default("cash") // "cash", "visa", "instapay", "wallet"
   createdAt     DateTime      @default(now())
   
   // Relations
@@ -88,6 +89,7 @@ model MemberCounter {
   id      Int @id @default(1)
   current Int @default(1000)
 }
+
 model Staff {
   id        String    @id @default(cuid())
   name      String

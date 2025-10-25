@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { printReceiptFromData } from '../lib/printSystem'
 import { calculateDaysBetween, formatDateYMD, formatDurationInMonths } from '../lib/dateFormatter'
+import PaymentMethodSelector from './PaymentMethodSelector'
 
 interface Member {
   id: string
@@ -40,6 +41,7 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
     startDate: getDefaultStartDate(),
     expiryDate: '',
     notes: '',
+    paymentMethod: 'cash', // الافتراضي كاش
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -102,7 +104,8 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
               'Member',
               result.receipt.amount,
               result.receipt.itemDetails,
-              result.receipt.createdAt
+              result.receipt.createdAt,
+              formData.paymentMethod
             )
           }, 500)
         }
@@ -177,6 +180,15 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* قسم طريقة الدفع */}
+            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
+              <PaymentMethodSelector
+                value={formData.paymentMethod}
+                onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
+                required
+              />
+            </div>
+
             {/* قسم التواريخ */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -196,9 +208,6 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                     className="w-full px-4 py-3 border-2 rounded-lg font-mono"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    التنسيق: سنة-شهر-يوم
-                  </p>
                 </div>
 
                 <div>
@@ -212,15 +221,12 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
                     className="w-full px-4 py-3 border-2 rounded-lg font-mono"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    التنسيق: سنة-شهر-يوم
-                  </p>
                 </div>
               </div>
 
               {/* أزرار سريعة */}
               <div className="mb-4">
-                <p className="text-sm font-medium mb-2">⚡ إضافة سريعة من تاريخ البداية:</p>
+                <p className="text-sm font-medium mb-2">⚡ إضافة سريعة:</p>
                 <div className="flex flex-wrap gap-2">
                   {[1, 2, 3, 6, 9, 12].map(months => (
                     <button

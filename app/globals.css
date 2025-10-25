@@ -124,3 +124,53 @@ button:disabled {
   transform: translateY(-4px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
+/* Excel-like table styling */
+.excel-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid #d1d5db;
+}
+
+/* Print styles */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .excel-table {
+    font-size: 9px;
+    page-break-inside: auto;
+  }
+
+  .excel-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .excel-table thead {
+    display: table-header-group;
+  }
+
+  .excel-table th,
+  .excel-table td {
+    padding: 3px 5px !important;
+  }
+}

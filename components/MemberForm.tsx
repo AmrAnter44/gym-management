@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { printReceiptFromData } from '../lib/printSystem'
 import { calculateDaysBetween, formatDurationInMonths } from '../lib/dateFormatter'
+import PaymentMethodSelector from './PaymentMethodSelector'
 
 interface MemberFormProps {
   onSuccess: () => void
@@ -19,8 +20,9 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     subscriptionPrice: 0,
     remainingAmount: 0,
     notes: '',
-    startDate: new Date().toISOString().split('T')[0], // اليوم
+    startDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
+    paymentMethod: 'cash', // الافتراضي كاش
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -98,14 +100,15 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
             const receipt = receipts[0]
             const details = JSON.parse(receipt.itemDetails)
             
-            // طباعة مباشرة
+            // طباعة مباشرة - استخدام paymentMethod من الـ details أو من الـ receipt أو القيمة الافتراضية
             setTimeout(() => {
               printReceiptFromData(
                 receipt.receiptNumber,
                 receipt.type,
                 receipt.amount,
                 details,
-                receipt.createdAt
+                receipt.createdAt,
+                details.paymentMethod || receipt.paymentMethod || formData.paymentMethod
               )
             }, 500)
           }
@@ -127,6 +130,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
           notes: '',
           startDate: new Date().toISOString().split('T')[0],
           expiryDate: '',
+          paymentMethod: 'cash',
         })
         
         setMessage('✅ تم إضافة العضو بنجاح!')
@@ -235,6 +239,15 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
               placeholder="0.00"
             />
           </div>
+        </div>
+
+        {/* قسم طريقة الدفع */}
+        <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
+          <PaymentMethodSelector
+            value={formData.paymentMethod}
+            onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
+            required
+          />
         </div>
 
         {/* قسم التواريخ */}
