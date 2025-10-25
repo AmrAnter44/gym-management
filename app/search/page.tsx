@@ -9,13 +9,11 @@ interface SearchResult {
 
 export default function SearchPage() {
   const [memberId, setMemberId] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [lastSearchTime, setLastSearchTime] = useState<Date | null>(null)
   const memberIdRef = useRef<HTMLInputElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
 
   // Auto-focus على حقل ID عند تحميل الصفحة
@@ -93,68 +91,9 @@ export default function SearchPage() {
       setTimeout(() => {
         memberIdRef.current?.focus()
         memberIdRef.current?.select()
-      }, 1500)
+      }, 500)
 
-      // مسح النتائج بعد ثانيتين
-      setTimeout(() => {
-        setResults([])
-        setSearched(false)
-      }, 2000)
-
-    } catch (error) {
-      console.error('Search error:', error)
-      playSound(false)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // البحث بالاسم أو الهاتف
-  const handleSearchByNamePhone = async () => {
-    if (!searchTerm.trim()) {
-      playSound(false)
-      return
-    }
-
-    setLoading(true)
-    setSearched(true)
-    const foundResults: SearchResult[] = []
-
-    try {
-      // البحث في الأعضاء
-      const membersRes = await fetch('/api/members')
-      const members = await membersRes.json()
-      
-      const filteredMembers = members.filter((m: any) => 
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.phone.includes(searchTerm)
-      )
-      
-      filteredMembers.forEach((member: any) => {
-        foundResults.push({ type: 'member', data: member })
-      })
-
-      // البحث في PT
-      const ptRes = await fetch('/api/pt')
-      const ptSessions = await ptRes.json()
-      
-      const filteredPT = ptSessions.filter((pt: any) =>
-        pt.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pt.phone.includes(searchTerm)
-      )
-      
-      filteredPT.forEach((pt: any) => {
-        foundResults.push({ type: 'pt', data: pt })
-      })
-
-      setResults(foundResults)
-      setLastSearchTime(new Date())
-
-      if (foundResults.length > 0) {
-        playSound(true)
-      } else {
-        playSound(false)
-      }
+      // لا نمسح النتائج تلقائياً - تبقى حتى البحث التالي
 
     } catch (error) {
       console.error('Search error:', error)
@@ -167,12 +106,6 @@ export default function SearchPage() {
   const handleIdKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearchById()
-    }
-  }
-
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearchByNamePhone()
     }
   }
 
@@ -228,58 +161,7 @@ export default function SearchPage() {
           </p>
         </div>
 
-        {/* فاصل */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t-2 border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500 font-bold">أو</span>
-          </div>
-        </div>
 
-        {/* البحث بالاسم أو الهاتف */}
-        <div>
-          <label className="block text-xl font-bold mb-3 text-purple-800 flex items-center gap-2">
-            <span>📱</span>
-            <span>البحث بالاسم أو رقم الهاتف</span>
-          </label>
-          <div className="flex gap-3">
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleSearchKeyPress}
-              className="flex-1 px-6 py-4 border-4 border-purple-300 rounded-xl text-2xl font-bold focus:border-purple-600 focus:ring-4 focus:ring-purple-200 transition"
-              placeholder="ابحث بالاسم أو الهاتف..."
-            />
-            <button
-              onClick={handleSearchByNamePhone}
-              disabled={loading || !searchTerm.trim()}
-              className="px-8 py-4 bg-purple-600 text-white text-xl font-bold rounded-xl hover:bg-purple-700 disabled:bg-gray-400 transition"
-            >
-              🔍 بحث
-            </button>
-          </div>
-        </div>
-
-        {/* معلومات مساعدة */}
-        <div className="bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg mt-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">💡</span>
-            <div>
-              <p className="font-bold text-blue-800">نصائح الاستخدام:</p>
-              <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                <li>• اسكن الباركود أو اكتب رقم العضوية في الخانة الأولى</li>
-                <li>• صوت عالي = تم العثور على العضو ✅</li>
-                <li>• صوت منخفض = لم يتم العثور ❌</li>
-                <li>• الحقل يُمسح تلقائياً بعد ثانيتين للسكان التالي</li>
-                <li>• استخدم الخانة الثانية للبحث التفصيلي بالاسم أو الهاتف</li>
-              </ul>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* عرض آخر عملية بحث */}
@@ -302,15 +184,12 @@ export default function SearchPage() {
               <div className="text-8xl mb-6">❌</div>
               <p className="text-3xl font-bold text-red-600 mb-3">لم يتم العثور على نتائج</p>
               <p className="text-xl text-red-500">
-                للبحث عن "{memberId || searchTerm}"
+                للبحث عن "{memberId || 'رقم العضوية'}"
               </p>
             </div>
           ) : (
             <div className="p-6">
-              <div className="bg-green-100 border-4 border-green-500 rounded-xl p-6 mb-6 text-center">
-                <div className="text-8xl mb-4">✅</div>
-                <p className="text-3xl font-bold text-green-800">تم العثور على {results.length} نتيجة</p>
-              </div>
+
               
               <div className="space-y-6">
                 {results.map((result, index) => (
