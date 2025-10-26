@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, phone, serviceType, price, staffName } = body
+    const { name, phone, serviceType, price, staffName, paymentMethod } = body
 
     // إنشاء الإدخال
     const entry = await prisma.dayUseInBody.create({
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         receiptNumber: counter.current,
         type: serviceType,
         amount: price,
+        paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
         itemDetails: JSON.stringify({
           name,
           serviceType,

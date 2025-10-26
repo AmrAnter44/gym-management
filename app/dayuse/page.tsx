@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ReceiptToPrint } from '../../components/ReceiptToPrint'
+import PaymentMethodSelector from '../../components/Paymentmethodselector '
 
 interface DayUseEntry {
   id: string
@@ -24,6 +25,7 @@ export default function DayUsePage() {
     serviceType: 'DayUse',
     price: 0,
     staffName: '',
+    paymentMethod: 'cash', // ✅ إضافة طريقة الدفع
   })
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
@@ -84,6 +86,7 @@ export default function DayUsePage() {
           serviceType: 'DayUse',
           price: 0,
           staffName: '',
+          paymentMethod: 'cash', // ✅ إعادة تعيين طريقة الدفع
         })
         
         setMessage('✅ تم التسجيل بنجاح!')
@@ -185,6 +188,15 @@ export default function DayUsePage() {
                   placeholder="اسم الموظف"
                 />
               </div>
+            </div>
+
+            {/* قسم طريقة الدفع */}
+            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
+              <PaymentMethodSelector
+                value={formData.paymentMethod}
+                onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
+                required
+              />
             </div>
 
             <button

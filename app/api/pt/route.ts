@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { clientName, phone, sessionsPurchased, coachName, pricePerSession } = body
+    const { clientName, phone, sessionsPurchased, coachName, pricePerSession, paymentMethod } = body
 
     // إنشاء جلسة PT
     const pt = await prisma.pT.create({
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         receiptNumber: counter.current,
         type: 'PT',
         amount: totalAmount,
+        paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
         itemDetails: JSON.stringify({
           clientName,
           sessionsPurchased,
