@@ -7,19 +7,29 @@ interface SearchResult {
   data: any
 }
 
+type SearchMode = 'id' | 'name'
+
 export default function SearchPage() {
+  const [searchMode, setSearchMode] = useState<SearchMode>('id')
   const [memberId, setMemberId] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [searchPhone, setSearchPhone] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [lastSearchTime, setLastSearchTime] = useState<Date | null>(null)
   const memberIdRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
 
-  // Auto-focus على حقل ID عند تحميل الصفحة
+  // Auto-focus على الحقل المناسب عند تغيير الوضع
   useEffect(() => {
-    memberIdRef.current?.focus()
-  }, [])
+    if (searchMode === 'id') {
+      memberIdRef.current?.focus()
+    } else {
+      nameRef.current?.focus()
+    }
+  }, [searchMode])
 
   // إنشاء صوت تنبيه
   const playSound = (isSuccess: boolean) => {
@@ -93,7 +103,73 @@ export default function SearchPage() {
         memberIdRef.current?.select()
       }, 500)
 
-      // لا نمسح النتائج تلقائياً - تبقى حتى البحث التالي
+    } catch (error) {
+      console.error('Search error:', error)
+      playSound(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // البحث بالاسم والرقم
+  const handleSearchByName = async () => {
+    if (!searchName.trim() && !searchPhone.trim()) {
+      playSound(false)
+      alert('يرجى إدخال الاسم أو رقم الهاتف للبحث')
+      return
+    }
+
+    setLoading(true)
+    setSearched(true)
+    const foundResults: SearchResult[] = []
+
+    try {
+      // جلب الأعضاء
+      const membersRes = await fetch('/api/members')
+      const members = await membersRes.json()
+
+      // جلب جلسات PT
+      const ptRes = await fetch('/api/pt')
+      const ptSessions = await ptRes.json()
+
+      // البحث في الأعضاء
+      const filteredMembers = members.filter((m: any) => {
+        const nameMatch = searchName.trim() 
+          ? m.name.toLowerCase().includes(searchName.trim().toLowerCase())
+          : true
+        const phoneMatch = searchPhone.trim()
+          ? m.phone.includes(searchPhone.trim())
+          : true
+        return nameMatch && phoneMatch
+      })
+
+      filteredMembers.forEach((member: any) => {
+        foundResults.push({ type: 'member', data: member })
+      })
+
+      // البحث في جلسات PT
+      const filteredPT = ptSessions.filter((pt: any) => {
+        const nameMatch = searchName.trim()
+          ? pt.clientName.toLowerCase().includes(searchName.trim().toLowerCase())
+          : true
+        const phoneMatch = searchPhone.trim()
+          ? pt.phone.includes(searchPhone.trim())
+          : true
+        return nameMatch && phoneMatch
+      })
+
+      filteredPT.forEach((pt: any) => {
+        foundResults.push({ type: 'pt', data: pt })
+      })
+
+      setResults(foundResults)
+      setLastSearchTime(new Date())
+
+      if (foundResults.length > 0) {
+        playSound(true)
+      } else {
+        playSound(false)
+      }
 
     } catch (error) {
       console.error('Search error:', error)
@@ -106,6 +182,12 @@ export default function SearchPage() {
   const handleIdKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearchById()
+    }
+  }
+
+  const handleNameKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearchByName()
     }
   }
 
@@ -127,42 +209,125 @@ export default function SearchPage() {
           <span>🔍</span>
           <span>البحث السريع</span>
         </h1>
-        <p className="text-gray-600">سكان سريع - الصوت يؤكد النتيجة تلقائياً</p>
+        <p className="text-gray-600">سكان سريع أو بحث بالاسم - الصوت يؤكد النتيجة تلقائياً</p>
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
-        {/* البحث بـ ID - الخانة الرئيسية */}
-        <div className="mb-6">
-          <label className="block text-2xl font-bold mb-4 text-blue-800 flex items-center gap-2">
-            <span>🎯</span>
-            <span>البحث برقم العضوية (ID)</span>
-          </label>
-          <div className="flex gap-3">
-            <input
-              ref={memberIdRef}
-              type="text"
-              value={memberId}
-              onChange={(e) => setMemberId(e.target.value)}
-              onKeyPress={handleIdKeyPress}
-              className="flex-1 px-6 py-6 border-4 border-green-300 rounded-xl text-4xl font-bold text-center focus:border-green-600 focus:ring-4 focus:ring-green-200 transition"
-              placeholder="اسكن أو اكتب رقم العضوية..."
-              autoFocus
-            />
-            <button
-              onClick={handleSearchById}
-              disabled={loading || !memberId.trim()}
-              className="px-8 py-6 bg-green-600 text-white text-xl font-bold rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition"
-            >
-              🔍 بحث
-            </button>
+      {/* أزرار التبديل */}
+      <div className="bg-white p-4 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setSearchMode('id')
+              setSearched(false)
+              setResults([])
+            }}
+            className={`flex-1 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
+              searchMode === 'id'
+                ? 'bg-blue-600 text-white shadow-lg scale-105'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            🎯 البحث برقم العضوية (ID)
+          </button>
+          <button
+            onClick={() => {
+              setSearchMode('name')
+              setSearched(false)
+              setResults([])
+            }}
+            className={`flex-1 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
+              searchMode === 'name'
+                ? 'bg-green-600 text-white shadow-lg scale-105'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            👤 البحث بالاسم والرقم
+          </button>
+        </div>
+      </div>
+
+      {/* قسم البحث بـ ID */}
+      {searchMode === 'id' && (
+        <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
+          <div className="mb-6">
+            <label className="block text-2xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+              <span>🎯</span>
+              <span>البحث برقم العضوية (ID)</span>
+            </label>
+            <div className="flex gap-3">
+              <input
+                ref={memberIdRef}
+                type="text"
+                value={memberId}
+                onChange={(e) => setMemberId(e.target.value)}
+                onKeyPress={handleIdKeyPress}
+                className="flex-1 px-6 py-6 border-4 border-green-300 rounded-xl text-4xl font-bold text-center focus:border-green-600 focus:ring-4 focus:ring-green-200 transition"
+                placeholder="اسكن أو اكتب رقم العضوية..."
+                autoFocus
+              />
+              <button
+                onClick={handleSearchById}
+                disabled={loading || !memberId.trim()}
+                className="px-8 py-6 bg-green-600 text-white text-xl font-bold rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition"
+              >
+                🔍 بحث
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mt-2">
+              💡 اضغط Enter للبحث السريع
+            </p>
           </div>
+        </div>
+      )}
+
+      {/* قسم البحث بالاسم والرقم */}
+      {searchMode === 'name' && (
+        <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-green-200">
+          <label className="block text-2xl font-bold mb-4 text-green-800 flex items-center gap-2">
+            <span>👤</span>
+            <span>البحث بالاسم والرقم</span>
+          </label>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">الاسم</label>
+              <input
+                ref={nameRef}
+                type="text"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                onKeyPress={handleNameKeyPress}
+                className="w-full px-4 py-4 border-2 border-green-300 rounded-lg text-xl focus:border-green-600 focus:ring-4 focus:ring-green-200 transition"
+                placeholder="اكتب اسم العضو أو جزء منه..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">رقم الهاتف</label>
+              <input
+                type="tel"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+                onKeyPress={handleNameKeyPress}
+                className="w-full px-4 py-4 border-2 border-green-300 rounded-lg text-xl focus:border-green-600 focus:ring-4 focus:ring-green-200 transition"
+                placeholder="اكتب رقم الهاتف أو جزء منه..."
+              />
+            </div>
+          </div>
+          
+          <button
+            onClick={handleSearchByName}
+            disabled={loading || (!searchName.trim() && !searchPhone.trim())}
+            className="w-full px-6 py-4 bg-green-600 text-white text-xl font-bold rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition"
+          >
+            🔍 بحث
+          </button>
+          
           <p className="text-sm text-gray-500 mt-2">
-            💡 اضغط Enter للبحث السريع
+            💡 يمكنك البحث بالاسم فقط، أو رقم الهاتف فقط، أو كليهما معاً
           </p>
         </div>
-
-
-      </div>
+      )}
 
       {/* عرض آخر عملية بحث */}
       {lastSearchTime && (
@@ -184,12 +349,19 @@ export default function SearchPage() {
               <div className="text-8xl mb-6">❌</div>
               <p className="text-3xl font-bold text-red-600 mb-3">لم يتم العثور على نتائج</p>
               <p className="text-xl text-red-500">
-                للبحث عن "{memberId || 'رقم العضوية'}"
+                {searchMode === 'id' 
+                  ? `للبحث عن رقم العضوية "${memberId}"`
+                  : `للبحث عن "${searchName || searchPhone}"`
+                }
               </p>
             </div>
           ) : (
             <div className="p-6">
-
+              <div className="mb-4 text-center">
+                <span className="bg-green-100 text-green-800 px-6 py-3 rounded-xl text-xl font-bold">
+                  ✅ تم العثور على {results.length} {results.length === 1 ? 'نتيجة' : 'نتائج'}
+                </span>
+              </div>
               
               <div className="space-y-6">
                 {results.map((result, index) => (
