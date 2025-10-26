@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { printReceipt } from '../lib/printSystem'
+import { printReceiptFromData } from '../lib/printSystem'
 
 interface ReceiptProps {
   receiptNumber: number
@@ -9,18 +9,20 @@ interface ReceiptProps {
   amount: number
   details: any
   date: Date
+  paymentMethod?: string
   onClose: () => void
 }
 
-export function ReceiptToPrint({ receiptNumber, type, amount, details, date, onClose }: ReceiptProps) {
+export function ReceiptToPrint({ receiptNumber, type, amount, details, date, paymentMethod, onClose }: ReceiptProps) {
   const handlePrint = () => {
-    printReceipt({
+    printReceiptFromData(
       receiptNumber,
       type,
       amount,
       details,
-      date
-    })
+      date,
+      paymentMethod || details.paymentMethod || 'cash'
+    )
   }
 
   // طباعة تلقائية عند التحميل

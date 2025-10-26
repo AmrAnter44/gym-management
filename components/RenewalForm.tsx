@@ -274,15 +274,14 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   type="number"
                   required
                   min="0"
-
                   value={formData.subscriptionPrice}
-onChange={(e) => {
-  const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-  setFormData({ ...formData, subscriptionPrice: value })
-}}
-step="1"
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                    setFormData({ ...formData, subscriptionPrice: value })
+                  }}
+                  step="1"
                   className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
 
@@ -293,11 +292,14 @@ step="1"
                 <input
                   type="number"
                   min="0"
-                  step="0.01"
                   value={formData.remainingAmount}
-                  onChange={(e) => setFormData({ ...formData, remainingAmount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                    setFormData({ ...formData, remainingAmount: value })
+                  }}
+                  step="1"
                   className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
             </div>

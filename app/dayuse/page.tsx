@@ -25,7 +25,7 @@ export default function DayUsePage() {
     serviceType: 'DayUse',
     price: 0,
     staffName: '',
-    paymentMethod: 'cash', // ✅ إضافة طريقة الدفع
+    paymentMethod: 'cash',
   })
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
@@ -72,7 +72,8 @@ export default function DayUsePage() {
               type: receipt.type,
               amount: receipt.amount,
               details: JSON.parse(receipt.itemDetails),
-              date: new Date(receipt.createdAt)
+              date: new Date(receipt.createdAt),
+              paymentMethod: formData.paymentMethod  // ✅ تمرير paymentMethod من الفورم
             })
             setShowReceipt(true)
           }
@@ -86,7 +87,7 @@ export default function DayUsePage() {
           serviceType: 'DayUse',
           price: 0,
           staffName: '',
-          paymentMethod: 'cash', // ✅ إعادة تعيين طريقة الدفع
+          paymentMethod: 'cash',
         })
         
         setMessage('✅ تم التسجيل بنجاح!')
@@ -275,6 +276,7 @@ export default function DayUsePage() {
           amount={receiptData.amount}
           details={receiptData.details}
           date={receiptData.date}
+          paymentMethod={receiptData.paymentMethod}
           onClose={() => setShowReceipt(false)}
         />
       )}

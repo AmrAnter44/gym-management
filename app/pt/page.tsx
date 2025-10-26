@@ -26,7 +26,7 @@ export default function PTPage() {
     sessionsPurchased: 0,
     coachName: '',
     pricePerSession: 0,
-    paymentMethod: 'cash', // إضافة طريقة الدفع
+    paymentMethod: 'cash',
   })
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
@@ -74,7 +74,7 @@ export default function PTPage() {
               amount: receipt.amount,
               details: JSON.parse(receipt.itemDetails),
               date: new Date(receipt.createdAt),
-              paymentMethod: receipt.paymentMethod
+              paymentMethod: formData.paymentMethod  // ✅ تمرير paymentMethod من الفورم
             })
             setShowReceipt(true)
           }
@@ -305,6 +305,7 @@ export default function PTPage() {
           amount={receiptData.amount}
           details={receiptData.details}
           date={receiptData.date}
+          paymentMethod={receiptData.paymentMethod}
           onClose={() => setShowReceipt(false)}
         />
       )}

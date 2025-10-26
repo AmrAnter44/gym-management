@@ -223,13 +223,13 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
               type="number"
               required
               value={formData.subscriptionPrice}
-onChange={(e) => {
-  const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-  setFormData({ ...formData, subscriptionPrice: value })
-}}
-step="1"
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                setFormData({ ...formData, subscriptionPrice: value })
+              }}
+              step="1"
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="0.00"
+              placeholder="0"
             />
           </div>
 
@@ -238,9 +238,13 @@ step="1"
             <input
               type="number"
               value={formData.remainingAmount}
-              onChange={(e) => setFormData({ ...formData, remainingAmount: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                setFormData({ ...formData, remainingAmount: value })
+              }}
+              step="1"
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="0.00"
+              placeholder="0"
             />
           </div>
         </div>
