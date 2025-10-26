@@ -223,7 +223,11 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
               type="number"
               required
               value={formData.subscriptionPrice}
-              onChange={(e) => setFormData({ ...formData, subscriptionPrice: parseFloat(e.target.value) || 0 })}
+onChange={(e) => {
+  const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+  setFormData({ ...formData, subscriptionPrice: value })
+}}
+step="1"
               className="w-full px-3 py-2 border rounded-lg"
               placeholder="0.00"
             />
