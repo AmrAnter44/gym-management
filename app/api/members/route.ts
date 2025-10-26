@@ -19,9 +19,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, startDate, expiryDate } = body
+    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, startDate, expiryDate, paymentMethod } = body
 
-    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, startDate, expiryDate })
+    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, startDate, expiryDate, paymentMethod })
 
     // التحقق من أن رقم العضوية غير مستخدم
     if (memberNumber) {
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
           receiptNumber: counter.current,
           type: 'Member',
           amount: paidAmount,
+          paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
           itemDetails: JSON.stringify({
             memberNumber: member.memberNumber,
             memberName: name,

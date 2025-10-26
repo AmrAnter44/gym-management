@@ -5,9 +5,9 @@ import { prisma } from '../../../../lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberId, subscriptionPrice, remainingAmount, months, notes } = body
+    const { memberId, subscriptionPrice, remainingAmount, startDate, expiryDate, notes, paymentMethod } = body
 
-    console.log('🔄 تجديد اشتراك عضو:', { memberId, subscriptionPrice, months })
+    console.log('🔄 تجديد اشتراك عضو:', { memberId, subscriptionPrice, startDate, expiryDate, paymentMethod })
 
     // جلب بيانات العضو
     const member = await prisma.member.findUnique({
@@ -18,18 +18,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'العضو غير موجود' }, { status: 404 })
     }
 
-    // حساب تاريخ الانتهاء الجديد
-    const today = new Date()
-    const newExpiryDate = new Date(today)
-    newExpiryDate.setMonth(newExpiryDate.getMonth() + parseInt(months))
-
     // تحديث بيانات العضو
     const updatedMember = await prisma.member.update({
       where: { id: memberId },
       data: {
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
-        expiryDate: newExpiryDate,
+        startDate: startDate ? new Date(startDate) : null,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
         isActive: true,
         notes: notes || member.notes,
       },
@@ -51,20 +47,30 @@ export async function POST(request: Request) {
 
       const paidAmount = subscriptionPrice - (remainingAmount || 0)
 
+      // حساب مدة الاشتراك
+      let subscriptionDays = null
+      if (startDate && expiryDate) {
+        const start = new Date(startDate)
+        const end = new Date(expiryDate)
+        subscriptionDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+      }
+
       const receipt = await prisma.receipt.create({
         data: {
           receiptNumber: counter.current,
           type: 'Member',
           amount: paidAmount,
+          paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
           itemDetails: JSON.stringify({
             memberNumber: member.memberNumber,
             memberName: member.name,
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
-            renewalMonths: months,
             previousExpiryDate: member.expiryDate,
-            newExpiryDate: newExpiryDate,
+            newStartDate: startDate,
+            newExpiryDate: expiryDate,
+            subscriptionDays: subscriptionDays,
             isRenewal: true,
           }),
           memberId: member.id,
