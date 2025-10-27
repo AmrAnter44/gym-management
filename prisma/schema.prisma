@@ -16,6 +16,7 @@ model Member {
   phone             String
   inBodyScans       Int       @default(0)
   invitations       Int       @default(0)
+  freePTSessions    Int       @default(0) // ✅ حصص PT المجانية
   subscriptionPrice Float
   remainingAmount   Float     @default(0)
   notes             String?
@@ -28,16 +29,18 @@ model Member {
 }
 
 model PT {
-  id              String    @id @default(cuid())
-  clientName      String
-  phone           String
+  id                String    @id @default(cuid())
+  clientName        String
+  phone             String
   sessionsPurchased Int
   sessionsRemaining Int
-  coachName       String
-  pricePerSession Float
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  receipts        Receipt[]
+  coachName         String
+  pricePerSession   Float
+  startDate         DateTime? // ✅ تاريخ بداية اشتراك PT
+  expiryDate        DateTime? // ✅ تاريخ نهاية اشتراك PT
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  receipts          Receipt[]
 }
 
 model DayUseInBody {

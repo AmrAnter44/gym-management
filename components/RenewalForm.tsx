@@ -11,6 +11,7 @@ interface Member {
   name: string
   phone: string
   subscriptionPrice: number
+  freePTSessions?: number // ✅ حصص PT المجانية الحالية
   startDate?: string
   expiryDate?: string
 }
@@ -38,6 +39,7 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
   const [formData, setFormData] = useState({
     subscriptionPrice: member.subscriptionPrice,
     remainingAmount: 0,
+    freePTSessions: 0, // ✅ حصص PT المجانية الجديدة
     startDate: getDefaultStartDate(),
     expiryDate: '',
     notes: '',
@@ -170,6 +172,13 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   {formatDateYMD(member.expiryDate)}
                 </p>
               </div>
+              {/* ✅ عرض حصص PT المجانية الحالية */}
+              {member.freePTSessions && member.freePTSessions > 0 && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-600">حصص PT المجانية الحالية</p>
+                  <p className="text-lg font-bold text-green-600">💪 {member.freePTSessions} حصة</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -264,8 +273,8 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
               )}
             </div>
 
-            {/* السعر والمتبقي */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* السعر والمتبقي وحصص PT */}
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
                   سعر الاشتراك <span className="text-red-600">*</span>
@@ -302,6 +311,23 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   placeholder="0"
                 />
               </div>
+
+              {/* ✅ حقل جديد: حصص PT المجانية */}
+              <div>
+                <label className="block text-sm font-medium mb-2 flex items-center gap-1">
+                  <span>💪</span>
+                  <span>حصص PT مجانية</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.freePTSessions}
+                  onChange={(e) => setFormData({ ...formData, freePTSessions: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                  placeholder="0"
+                />
+                <p className="text-xs text-gray-500 mt-1">حصص إضافية مع التجديد</p>
+              </div>
             </div>
 
             {/* ملاحظات */}
@@ -333,6 +359,13 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   <div className="flex justify-between text-lg">
                     <span className="text-gray-600">المتبقي:</span>
                     <span className="font-bold text-red-600">- {formData.remainingAmount} ج.م</span>
+                  </div>
+                )}
+                
+                {formData.freePTSessions > 0 && (
+                  <div className="flex justify-between text-lg bg-green-100 p-2 rounded">
+                    <span className="text-gray-600">💪 حصص PT مجانية:</span>
+                    <span className="font-bold text-green-600">{formData.freePTSessions} حصة</span>
                   </div>
                 )}
                 

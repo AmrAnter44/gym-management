@@ -17,6 +17,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     phone: '',
     inBodyScans: 0,
     invitations: 0,
+    freePTSessions: 0, // ✅ حصص PT المجانية
     subscriptionPrice: 0,
     remainingAmount: 0,
     notes: '',
@@ -125,6 +126,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
           phone: '',
           inBodyScans: 0,
           invitations: 0,
+          freePTSessions: 0, // ✅ تصفير حصص PT المجانية
           subscriptionPrice: 0,
           remainingAmount: 0,
           notes: '',
@@ -215,6 +217,23 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
               className="w-full px-3 py-2 border rounded-lg"
               placeholder="0"
             />
+          </div>
+
+          {/* ✅ حقل جديد: حصص PT المجانية */}
+          <div>
+            <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+              <span>💪</span>
+              <span>حصص PT المجانية</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.freePTSessions}
+              onChange={(e) => setFormData({ ...formData, freePTSessions: parseInt(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border rounded-lg"
+              placeholder="0"
+            />
+            <p className="text-xs text-gray-500 mt-1">عدد جلسات PT المجانية مع الاشتراك</p>
           </div>
 
           <div>
