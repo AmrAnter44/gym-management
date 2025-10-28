@@ -31,21 +31,27 @@ export async function POST(request: Request) {
       paymentMethod
     } = body
 
-    console.log('📝 إضافة جلسة PT جديدة:', { ptNumber, clientName, sessionsPurchased, startDate, expiryDate, paymentMethod })
+    console.log('📝 إضافة جلسة PT جديدة:', { ptNumber, clientName, sessionsPurchased })
+
+    // التحقق من أن رقم PT مُدخل
+    if (!ptNumber) {
+      return NextResponse.json(
+        { error: 'رقم PT مطلوب' }, 
+        { status: 400 }
+      )
+    }
 
     // التحقق من أن رقم PT غير مستخدم
-    if (ptNumber) {
-      const existingPT = await prisma.pT.findUnique({
-        where: { ptNumber: parseInt(ptNumber) }
-      })
-      
-      if (existingPT) {
-        console.error('❌ رقم PT مستخدم:', ptNumber)
-        return NextResponse.json(
-          { error: `رقم PT ${ptNumber} مستخدم بالفعل` }, 
-          { status: 400 }
-        )
-      }
+    const existingPT = await prisma.pT.findUnique({
+      where: { ptNumber: parseInt(ptNumber) }
+    })
+    
+    if (existingPT) {
+      console.error('❌ رقم PT مستخدم:', ptNumber)
+      return NextResponse.json(
+        { error: `رقم PT ${ptNumber} مستخدم بالفعل` }, 
+        { status: 400 }
+      )
     }
 
     // التحقق من التواريخ
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
     // إنشاء جلسة PT
     const pt = await prisma.pT.create({
       data: {
-        ptNumber: ptNumber ? parseInt(ptNumber) : undefined,
+        ptNumber: parseInt(ptNumber),
         clientName,
         phone,
         sessionsPurchased,
@@ -76,24 +82,20 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ تم إنشاء جلسة PT:', pt.id)
+    console.log('✅ تم إنشاء جلسة PT:', pt.ptNumber)
 
     // إنشاء إيصال
     try {
       let counter = await prisma.receiptCounter.findUnique({ where: { id: 1 } })
       
       if (!counter) {
-        console.log('📊 إنشاء عداد الإيصالات لأول مرة')
         counter = await prisma.receiptCounter.create({
           data: { id: 1, current: 1000 }
         })
       }
 
-      console.log('🧾 رقم الإيصال التالي:', counter.current)
-
       const totalAmount = sessionsPurchased * pricePerSession
 
-      // حساب مدة الاشتراك
       let subscriptionDays = null
       if (startDate && expiryDate) {
         const start = new Date(startDate)
@@ -118,7 +120,8 @@ export async function POST(request: Request) {
             expiryDate: expiryDate,
             subscriptionDays: subscriptionDays,
           }),
-          ptId: pt.id,
+          // إزالة السطر الذي يسبب الخطأ
+          // ptNumber: pt.ptNumber, ❌
         },
       })
 
@@ -129,7 +132,6 @@ export async function POST(request: Request) {
         data: { current: counter.current + 1 }
       })
 
-      console.log('🔄 تم تحديث عداد الإيصالات إلى:', counter.current + 1)
     } catch (receiptError) {
       console.error('❌ خطأ في إنشاء الإيصال:', receiptError)
     }
@@ -141,15 +143,14 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT - تحديث جلسة PT (مثلاً: استخدام جلسة)
+// PUT - تحديث جلسة PT
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, action, ...data } = body
+    const { ptNumber, action, ...data } = body
 
     if (action === 'use_session') {
-      // استخدام جلسة
-      const pt = await prisma.pT.findUnique({ where: { id } })
+      const pt = await prisma.pT.findUnique({ where: { ptNumber: parseInt(ptNumber) } })
       
       if (!pt) {
         return NextResponse.json({ error: 'جلسة PT غير موجودة' }, { status: 404 })
@@ -160,13 +161,12 @@ export async function PUT(request: Request) {
       }
 
       const updatedPT = await prisma.pT.update({
-        where: { id },
+        where: { ptNumber: parseInt(ptNumber) },
         data: { sessionsRemaining: pt.sessionsRemaining - 1 },
       })
 
       return NextResponse.json(updatedPT)
     } else {
-      // تحديث عادي
       const updateData: any = { ...data }
       
       if (data.startDate) {
@@ -177,7 +177,7 @@ export async function PUT(request: Request) {
       }
 
       const pt = await prisma.pT.update({
-        where: { id },
+        where: { ptNumber: parseInt(ptNumber) },
         data: updateData,
       })
 
@@ -193,13 +193,13 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const ptNumber = searchParams.get('ptNumber')
 
-    if (!id) {
-      return NextResponse.json({ error: 'رقم جلسة PT مطلوب' }, { status: 400 })
+    if (!ptNumber) {
+      return NextResponse.json({ error: 'رقم PT مطلوب' }, { status: 400 })
     }
 
-    await prisma.pT.delete({ where: { id } })
+    await prisma.pT.delete({ where: { ptNumber: parseInt(ptNumber) } })
     return NextResponse.json({ message: 'تم الحذف بنجاح' })
   } catch (error) {
     console.error('Error deleting PT:', error)

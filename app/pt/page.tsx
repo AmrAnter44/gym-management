@@ -6,7 +6,6 @@ import PaymentMethodSelector from '../../components/Paymentmethodselector '
 import { formatDateYMD, calculateRemainingDays, calculateDaysBetween, formatDurationInMonths } from '../../lib/dateFormatter'
 
 interface PTSession {
-  id: string
   ptNumber: number
   clientName: string
   phone: string
@@ -24,7 +23,6 @@ export default function PTPage() {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
-  const [nextPTNumber, setNextPTNumber] = useState<number>(2001)
   
   const [formData, setFormData] = useState({
     ptNumber: '',
@@ -39,21 +37,6 @@ export default function PTPage() {
   })
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
-
-  // جلب رقم PT التالي
-  useEffect(() => {
-    const fetchNextNumber = async () => {
-      try {
-        const response = await fetch('/api/pt/next-number')
-        const data = await response.json()
-        setNextPTNumber(data.nextNumber)
-        setFormData(prev => ({ ...prev, ptNumber: data.nextNumber.toString() }))
-      } catch (error) {
-        console.error('Error fetching next number:', error)
-      }
-    }
-    fetchNextNumber()
-  }, [])
 
   const fetchSessions = async () => {
     try {
@@ -71,13 +54,11 @@ export default function PTPage() {
     fetchSessions()
   }, [])
 
-  // حساب مدة الاشتراك بالأيام
   const calculateDuration = () => {
     if (!formData.startDate || !formData.expiryDate) return null
     return calculateDaysBetween(formData.startDate, formData.expiryDate)
   }
 
-  // حساب تاريخ النهاية من عدد الأشهر
   const calculateExpiryFromMonths = (months: number) => {
     if (!formData.startDate) return
     
@@ -95,6 +76,13 @@ export default function PTPage() {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+
+    // التحقق من إدخال رقم PT
+    if (!formData.ptNumber) {
+      setMessage('❌ يجب إدخال رقم PT')
+      setLoading(false)
+      return
+    }
 
     // التحقق من التواريخ
     if (formData.startDate && formData.expiryDate) {
@@ -121,7 +109,7 @@ export default function PTPage() {
         const pt = result
         
         try {
-          const receiptsResponse = await fetch(`/api/receipts?ptId=${pt.id}`)
+          const receiptsResponse = await fetch(`/api/receipts?ptNumber=${pt.ptNumber}`)
           const receipts = await receiptsResponse.json()
           
           if (receipts.length > 0) {
@@ -141,10 +129,8 @@ export default function PTPage() {
         }
 
         // تصفير الفورم
-        const nextNumber = nextPTNumber + 1
-        setNextPTNumber(nextNumber)
         setFormData({
-          ptNumber: nextNumber.toString(),
+          ptNumber: '',
           clientName: '',
           phone: '',
           sessionsPurchased: 0,
@@ -170,12 +156,12 @@ export default function PTPage() {
     }
   }
 
-  const useSession = async (id: string) => {
+  const useSession = async (ptNumber: number) => {
     try {
       await fetch('/api/pt', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'use_session' }),
+        body: JSON.stringify({ ptNumber, action: 'use_session' }),
       })
       fetchSessions()
       alert('تم تسجيل الحضور بنجاح')
@@ -212,14 +198,14 @@ export default function PTPage() {
             <div className="grid grid-cols-2 gap-4">
               {/* رقم PT */}
               <div>
-                <label className="block text-sm font-medium mb-1">رقم PT</label>
+                <label className="block text-sm font-medium mb-1">رقم PT *</label>
                 <input
                   type="number"
                   required
                   value={formData.ptNumber}
                   onChange={(e) => setFormData({ ...formData, ptNumber: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg bg-gray-50 font-bold text-green-600"
-                  placeholder="رقم PT"
+                  className="w-full px-3 py-2 border rounded-lg font-bold text-green-600"
+                  placeholder="أدخل رقم PT"
                 />
               </div>
 
@@ -417,7 +403,7 @@ export default function PTPage() {
                   const isExpiringSoon = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
                   
                   return (
-                    <tr key={session.id} className="border-t hover:bg-gray-50">
+                    <tr key={session.ptNumber} className="border-t hover:bg-gray-50">
                       <td className="px-4 py-3 font-bold text-green-600">#{session.ptNumber}</td>
                       <td className="px-4 py-3">{session.clientName}</td>
                       <td className="px-4 py-3">{session.phone}</td>
@@ -455,7 +441,7 @@ export default function PTPage() {
                       </td>
                       <td className="px-4 py-3 space-x-2 space-x-reverse">
                         <button
-                          onClick={() => useSession(session.id)}
+                          onClick={() => useSession(session.ptNumber)}
                           disabled={session.sessionsRemaining === 0}
                           className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:bg-gray-400"
                         >

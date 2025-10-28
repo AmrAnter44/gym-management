@@ -16,28 +16,28 @@ model Member {
   phone             String
   inBodyScans       Int       @default(0)
   invitations       Int       @default(0)
-  freePTSessions    Int       @default(0) // ✅ حصص PT المجانية
+  freePTSessions    Int       @default(0)
   subscriptionPrice Float
   remainingAmount   Float     @default(0)
   notes             String?
   isActive          Boolean   @default(true)
-  startDate         DateTime? // تاريخ بداية الاشتراك
-  expiryDate        DateTime? // تاريخ نهاية الاشتراك
+  startDate         DateTime?
+  expiryDate        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   receipts          Receipt[]
 }
 
 model PT {
-  id                String    @id @default(cuid())
+  ptNumber          Int       @id  // المعرف الأساسي هو ptNumber
   clientName        String
   phone             String
   sessionsPurchased Int
   sessionsRemaining Int
   coachName         String
   pricePerSession   Float
-  startDate         DateTime? // ✅ تاريخ بداية اشتراك PT
-  expiryDate        DateTime? // ✅ تاريخ نهاية اشتراك PT
+  startDate         DateTime? 
+  expiryDate        DateTime? 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   receipts          Receipt[]
@@ -47,7 +47,7 @@ model DayUseInBody {
   id          String   @id @default(cuid())
   name        String
   phone       String
-  serviceType String   // "DayUse" or "InBody"
+  serviceType String   
   price       Float
   staffName   String
   createdAt   DateTime @default(now())
@@ -66,18 +66,17 @@ model Visitor {
 model Receipt {
   id            String        @id @default(cuid())
   receiptNumber Int           @unique
-  type          String        // "Member", "PT", "DayUse", "InBody"
+  type          String        
   amount        Float
-  itemDetails   String        // JSON string with payment details
-  paymentMethod String        @default("cash") // "cash", "visa", "instapay", "wallet"
+  itemDetails   String        
+  paymentMethod String        @default("cash") 
   createdAt     DateTime      @default(now())
   
-  // Relations
   memberId      String?
   member        Member?       @relation(fields: [memberId], references: [id])
   
-  ptId          String?
-  pt            PT?           @relation(fields: [ptId], references: [id])
+  ptNumber      Int?          // تغيير من ptId إلى ptNumber
+  pt            PT?           @relation(fields: [ptNumber], references: [ptNumber])
   
   dayUseId      String?
   dayUse        DayUseInBody? @relation(fields: [dayUseId], references: [id])
@@ -108,7 +107,7 @@ model Staff {
 
 model Expense {
   id          String   @id @default(cuid())
-  type        String   // "gym_expense" أو "staff_loan"
+  type        String   
   amount      Float
   description String
   notes       String?
