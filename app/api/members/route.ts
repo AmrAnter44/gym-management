@@ -19,9 +19,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberNumber, name, phone, inBodyScans, invitations, subscriptionPrice, remainingAmount, notes, startDate, expiryDate, paymentMethod } = body
+    const { memberNumber, name, phone, inBodyScans, invitations, freePTSessions, subscriptionPrice, remainingAmount, notes, startDate, expiryDate, paymentMethod } = body
 
-    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, startDate, expiryDate, paymentMethod })
+    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, freePTSessions, startDate, expiryDate, paymentMethod })
 
     // التحقق من أن رقم العضوية غير مستخدم
     if (memberNumber) {
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
         phone,
         inBodyScans: inBodyScans || 0,
         invitations: invitations || 0,
+        freePTSessions: freePTSessions || 0, // ✅ إضافة حصص PT المجانية
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
         notes,
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ تم إنشاء العضو:', member.id)
+    console.log('✅ تم إنشاء العضو:', member.id, 'حصص PT:', member.freePTSessions)
 
     // إنشاء إيصال دائماً
     try {
@@ -97,13 +98,14 @@ export async function POST(request: Request) {
           receiptNumber: counter.current,
           type: 'Member',
           amount: paidAmount,
-          paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
+          paymentMethod: paymentMethod || 'cash',
           itemDetails: JSON.stringify({
             memberNumber: member.memberNumber,
             memberName: name,
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
+            freePTSessions: freePTSessions || 0, // ✅ إضافة حصص PT في الإيصال
             startDate: startDate,
             expiryDate: expiryDate,
             subscriptionDays: subscriptionDays,

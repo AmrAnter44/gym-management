@@ -5,9 +5,9 @@ import { prisma } from '../../../../lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberId, subscriptionPrice, remainingAmount, startDate, expiryDate, notes, paymentMethod } = body
+    const { memberId, subscriptionPrice, remainingAmount, freePTSessions, startDate, expiryDate, notes, paymentMethod } = body
 
-    console.log('🔄 تجديد اشتراك عضو:', { memberId, subscriptionPrice, startDate, expiryDate, paymentMethod })
+    console.log('🔄 تجديد اشتراك عضو:', { memberId, subscriptionPrice, freePTSessions, startDate, expiryDate, paymentMethod })
 
     // جلب بيانات العضو
     const member = await prisma.member.findUnique({
@@ -18,12 +18,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'العضو غير موجود' }, { status: 404 })
     }
 
+    // حساب حصص PT الجديدة (الحالية + الإضافية)
+    const currentFreePT = member.freePTSessions || 0
+    const additionalFreePT = freePTSessions || 0
+    const totalFreePT = currentFreePT + additionalFreePT
+
+    console.log('💪 حصص PT: الحالية =', currentFreePT, '+ الإضافية =', additionalFreePT, '= الإجمالي =', totalFreePT)
+
     // تحديث بيانات العضو
     const updatedMember = await prisma.member.update({
       where: { id: memberId },
       data: {
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
+        freePTSessions: totalFreePT, // ✅ تحديث حصص PT المجانية
         startDate: startDate ? new Date(startDate) : null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         isActive: true,
@@ -31,7 +39,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ تم تحديث بيانات العضو')
+    console.log('✅ تم تحديث بيانات العضو - حصص PT الجديدة:', updatedMember.freePTSessions)
 
     // إنشاء إيصال التجديد
     try {
@@ -60,13 +68,16 @@ export async function POST(request: Request) {
           receiptNumber: counter.current,
           type: 'Member',
           amount: paidAmount,
-          paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
+          paymentMethod: paymentMethod || 'cash',
           itemDetails: JSON.stringify({
             memberNumber: member.memberNumber,
             memberName: member.name,
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
+            freePTSessions: additionalFreePT, // ✅ حصص PT الإضافية في الإيصال
+            previousFreePTSessions: currentFreePT,
+            totalFreePTSessions: totalFreePT,
             previousExpiryDate: member.expiryDate,
             newStartDate: startDate,
             newExpiryDate: expiryDate,

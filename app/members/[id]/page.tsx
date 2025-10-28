@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ReceiptToPrint } from '../../../components/ReceiptToPrint'
 import PaymentMethodSelector from '../../../components/Paymentmethodselector '
+import RenewalForm from '../../../components/RenewalForm'
 import { formatDateYMD, calculateRemainingDays } from '../../../lib/dateFormatter'
 
 interface Member {
@@ -13,7 +14,7 @@ interface Member {
   phone: string
   inBodyScans: number
   invitations: number
-  freePTSessions?: number  // جعلها optional
+  freePTSessions?: number
   subscriptionPrice: number
   remainingAmount: number
   notes?: string
@@ -33,6 +34,7 @@ export default function MemberDetailPage() {
   const [message, setMessage] = useState('')
   const [showReceipt, setShowReceipt] = useState(false)
   const [receiptData, setReceiptData] = useState<any>(null)
+  const [showRenewalForm, setShowRenewalForm] = useState(false)
 
   // Confirmation Modal
   const [confirmModal, setConfirmModal] = useState<{
@@ -64,7 +66,6 @@ export default function MemberDetailPage() {
       const foundMember = members.find((m: Member) => m.id === memberId)
       
       if (foundMember) {
-        // إضافة default values للحقول المفقودة
         const memberWithDefaults = {
           ...foundMember,
           freePTSessions: foundMember.freePTSessions ?? 0,
@@ -72,7 +73,7 @@ export default function MemberDetailPage() {
           invitations: foundMember.invitations ?? 0
         }
         
-        console.log('Member data:', memberWithDefaults) // للتأكد من البيانات
+        console.log('Member data:', memberWithDefaults)
         setMember(memberWithDefaults)
       } else {
         setMessage('❌ لم يتم العثور على العضو')
@@ -119,7 +120,6 @@ export default function MemberDetailPage() {
       })
 
       if (response.ok) {
-        // إنشاء إيصال للدفع
         const receiptResponse = await fetch('/api/receipts/create-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -316,6 +316,40 @@ export default function MemberDetailPage() {
     }
   }
 
+  // ✅ حذف العضو
+  const handleDelete = async () => {
+    if (!member) return
+
+    setConfirmModal({
+      show: true,
+      title: '⚠️ تأكيد حذف العضو',
+      message: `هل أنت متأكد من حذف العضو "${member.name}" (#${member.memberNumber})؟ لا يمكن التراجع عن هذا الإجراء!`,
+      onConfirm: async () => {
+        setConfirmModal(null)
+        setLoading(true)
+        try {
+          const response = await fetch(`/api/members?id=${member.id}`, { 
+            method: 'DELETE' 
+          })
+
+          if (response.ok) {
+            setMessage('✅ تم حذف العضو بنجاح')
+            setTimeout(() => {
+              router.push('/members')
+            }, 1500)
+          } else {
+            setMessage('❌ فشل حذف العضو')
+          }
+        } catch (error) {
+          console.error(error)
+          setMessage('❌ حدث خطأ في الحذف')
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
   if (loading && !member) {
     return (
       <div className="container mx-auto p-6 text-center" dir="rtl">
@@ -504,6 +538,49 @@ export default function MemberDetailPage() {
             className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-bold"
           >
             تجميد الاشتراك
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ قسم التجديد والحذف */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* تجديد الاشتراك */}
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-green-200 p-3 rounded-full">
+              <span className="text-3xl">🔄</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-green-800">تجديد الاشتراك</h3>
+              <p className="text-sm text-green-700">تجديد اشتراك العضو لفترة جديدة</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowRenewalForm(true)}
+            disabled={loading}
+            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-bold text-lg shadow-md hover:shadow-lg"
+          >
+            🔄 تجديد الاشتراك
+          </button>
+        </div>
+
+        {/* حذف العضو */}
+        <div className="bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-300 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-red-200 p-3 rounded-full">
+              <span className="text-3xl">🗑️</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-red-800">حذف العضو</h3>
+              <p className="text-sm text-red-700">حذف العضو نهائياً من النظام</p>
+            </div>
+          </div>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-bold text-lg shadow-md hover:shadow-lg"
+          >
+            🗑️ حذف العضو
           </button>
         </div>
       </div>
@@ -725,6 +802,18 @@ export default function MemberDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ✅ نموذج التجديد */}
+      {showRenewalForm && (
+        <RenewalForm
+          member={member}
+          onSuccess={() => {
+            fetchMember()
+            setShowRenewalForm(false)
+          }}
+          onClose={() => setShowRenewalForm(false)}
+        />
       )}
 
       {/* الإيصال */}

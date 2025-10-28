@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import MemberForm from '../../components/MemberForm'
-import RenewalForm from '../../components/RenewalForm'
 import { formatDateYMD, calculateRemainingDays } from '../../lib/dateFormatter'
 
 interface Member {
@@ -26,8 +25,6 @@ export default function MembersPage() {
   const router = useRouter()
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [showRenewalForm, setShowRenewalForm] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchMembers = async () => {
@@ -52,27 +49,6 @@ export default function MembersPage() {
   useEffect(() => {
     fetchMembers()
   }, [])
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من الحذف؟')) return
-
-    try {
-      await fetch(`/api/members?id=${id}`, { method: 'DELETE' })
-      fetchMembers()
-    } catch (error) {
-      console.error('Error deleting member:', error)
-    }
-  }
-
-  const handleRenewal = (member: Member) => {
-    setSelectedMember(member)
-    setShowRenewalForm(true)
-  }
-
-  const closeRenewalForm = () => {
-    setShowRenewalForm(false)
-    setSelectedMember(null)
-  }
 
   const handleViewDetails = (memberId: string) => {
     router.push(`/members/${memberId}`)
@@ -168,29 +144,14 @@ export default function MembersPage() {
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewDetails(member.id)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
-                            title="عرض التفاصيل"
-                          >
-                            👁️ عرض
-                          </button>
-                          <button
-                            onClick={() => handleRenewal(member)}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition"
-                            title="تجديد الاشتراك"
-                          >
-                            🔄 تجديد
-                          </button>
-                          <button
-                            onClick={() => handleDelete(member.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="حذف العضو"
-                          >
-                            حذف
-                          </button>
-                        </div>
+                        {/* ✅ زر "عرض" فقط - التجديد والحذف داخل صفحة التفاصيل */}
+                        <button
+                          onClick={() => handleViewDetails(member.id)}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition shadow-md hover:shadow-lg font-medium"
+                          title="عرض التفاصيل الكاملة"
+                        >
+                          👁️ عرض التفاصيل
+                        </button>
                       </td>
                     </tr>
                   )
@@ -205,15 +166,6 @@ export default function MembersPage() {
             </div>
           )}
         </div>
-      )}
-
-      {/* نموذج التجديد */}
-      {showRenewalForm && selectedMember && (
-        <RenewalForm
-          member={selectedMember}
-          onSuccess={fetchMembers}
-          onClose={closeRenewalForm}
-        />
       )}
     </div>
   )
