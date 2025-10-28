@@ -23,15 +23,6 @@ interface Member {
   createdAt: string
 }
 
-interface ActionHistory {
-  id: string
-  type: string
-  amount?: number
-  days?: number
-  notes?: string
-  createdAt: string
-}
-
 export default function MemberDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -110,8 +101,6 @@ export default function MemberDetailPage() {
 
       if (response.ok) {
         // إنشاء إيصال للدفع
-        let counter = await fetch('/api/receipts/next-number').then(r => r.json())
-        
         const receiptResponse = await fetch('/api/receipts/create-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

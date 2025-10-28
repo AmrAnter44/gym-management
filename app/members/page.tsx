@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import MemberForm from '../../components/MemberForm'
 import RenewalForm from '../../components/RenewalForm'
 import { formatDateYMD, calculateRemainingDays } from '../../lib/dateFormatter'
@@ -22,6 +23,7 @@ interface Member {
 }
 
 export default function MembersPage() {
+  const router = useRouter()
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showRenewalForm, setShowRenewalForm] = useState(false)
@@ -70,6 +72,10 @@ export default function MembersPage() {
   const closeRenewalForm = () => {
     setShowRenewalForm(false)
     setSelectedMember(null)
+  }
+
+  const handleViewDetails = (memberId: string) => {
+    router.push(`/members/${memberId}`)
   }
 
   return (
@@ -163,6 +169,13 @@ export default function MembersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewDetails(member.id)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition"
+                            title="عرض التفاصيل"
+                          >
+                            👁️ عرض
+                          </button>
                           <button
                             onClick={() => handleRenewal(member)}
                             className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition"

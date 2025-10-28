@@ -93,6 +93,13 @@ export default function HomePage() {
       href: '/search',
       color: 'bg-red-500',
     },
+    {
+      title: 'سجل الدعوات',
+      icon: '🎟️',
+      description: 'متابعة جميع دعوات الأعضاء المستخدمة',
+      href: '/invitations',
+      color: 'bg-pink-500',
+    },
   ]
 
   return (
