@@ -10,22 +10,23 @@ datasource db {
 }
 
 model Member {
-  id                String    @id @default(cuid())
-  memberNumber      Int       @unique
+  id                String       @id @default(cuid())
+  memberNumber      Int          @unique
   name              String
   phone             String
-  inBodyScans       Int       @default(0)
-  invitations       Int       @default(0)
-  freePTSessions    Int       @default(0)
+  inBodyScans       Int          @default(0)
+  invitations       Int          @default(0)
+  freePTSessions    Int          @default(0)
   subscriptionPrice Float
-  remainingAmount   Float     @default(0)
+  remainingAmount   Float        @default(0)
   notes             String?
-  isActive          Boolean   @default(true)
+  isActive          Boolean      @default(true)
   startDate         DateTime?
   expiryDate        DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   receipts          Receipt[]
+  invitationRecords Invitation[] // علاقة مع سجلات الدعوات
 }
 
 model PT {
@@ -117,4 +118,16 @@ model Expense {
   staffId     String?
   staff       Staff?   @relation(fields: [staffId], references: [id])
   isPaid      Boolean  @default(false)
+}
+
+// 🆕 نموذج جديد للدعوات
+model Invitation {
+  id          String   @id @default(cuid())
+  guestName   String   // اسم الضيف
+  guestPhone  String   // رقم هاتف الضيف
+  notes       String?  // ملاحظات
+  createdAt   DateTime @default(now())
+  
+  memberId    String   // ربط مع العضو الذي استخدم الدعوة
+  member      Member   @relation(fields: [memberId], references: [id])
 }
