@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       const receipt = await prisma.receipt.create({
         data: {
           receiptNumber: counter.current,
-          type: 'PT',
+          type: 'اشتراك برايفت',
           amount: totalAmount,
           paymentMethod: paymentMethod || 'cash',
           itemDetails: JSON.stringify({

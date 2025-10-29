@@ -11,7 +11,9 @@ interface Member {
   name: string
   phone: string
   subscriptionPrice: number
-  freePTSessions?: number // ✅ حصص PT المجانية الحالية
+  freePTSessions?: number
+  inBodyScans?: number      // ✅ إضافة InBody
+  invitations?: number       // ✅ إضافة Invitations
   startDate?: string
   expiryDate?: string
 }
@@ -23,7 +25,6 @@ interface RenewalFormProps {
 }
 
 export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormProps) {
-  // تحديد تاريخ البداية الافتراضي
   const getDefaultStartDate = () => {
     if (member.expiryDate) {
       const expiry = new Date(member.expiryDate)
@@ -39,7 +40,9 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
   const [formData, setFormData] = useState({
     subscriptionPrice: member.subscriptionPrice,
     remainingAmount: 0,
-    freePTSessions: 0, // ✅ حصص PT المجانية الجديدة
+    freePTSessions: 0,    // ✅ حصص PT المجانية الجديدة
+    inBodyScans: 0,       // ✅ حصص InBody الجديدة
+    invitations: 0,       // ✅ حصص Invitations الجديدة
     startDate: getDefaultStartDate(),
     expiryDate: '',
     notes: '',
@@ -48,13 +51,11 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  // حساب مدة الاشتراك بالأيام
   const calculateDuration = () => {
     if (!formData.startDate || !formData.expiryDate) return null
     return calculateDaysBetween(formData.startDate, formData.expiryDate)
   }
 
-  // حساب تاريخ النهاية من عدد الأشهر
   const calculateExpiryFromMonths = (months: number) => {
     if (!formData.startDate) return
     
@@ -73,7 +74,6 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
     setLoading(true)
     setMessage('')
 
-    // التحقق من التواريخ
     if (formData.startDate && formData.expiryDate) {
       const start = new Date(formData.startDate)
       const end = new Date(formData.expiryDate)
@@ -98,7 +98,6 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
       const result = await response.json()
 
       if (response.ok) {
-        // طباعة الإيصال تلقائياً
         if (result.receipt) {
           setTimeout(() => {
             printReceiptFromData(
@@ -172,13 +171,25 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   {formatDateYMD(member.expiryDate)}
                 </p>
               </div>
-              {/* ✅ عرض حصص PT المجانية الحالية */}
-              {member.freePTSessions && member.freePTSessions > 0 && (
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-600">حصص PT المجانية الحالية</p>
-                  <p className="text-lg font-bold text-green-600">💪 {member.freePTSessions} حصة</p>
+            </div>
+
+            {/* ✅ عرض الحصص الحالية */}
+            <div className="mt-4 pt-4 border-t border-blue-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">الحصص المتبقية حالياً:</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-600">💪 PT</p>
+                  <p className="text-xl font-bold text-orange-600">{member.freePTSessions || 0}</p>
                 </div>
-              )}
+                <div className="bg-white rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-600">⚖️ InBody</p>
+                  <p className="text-xl font-bold text-green-600">{member.inBodyScans || 0}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 text-center">
+                  <p className="text-xs text-gray-600">🎟️ دعوات</p>
+                  <p className="text-xl font-bold text-purple-600">{member.invitations || 0}</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -233,7 +244,6 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                 </div>
               </div>
 
-              {/* أزرار سريعة */}
               <div className="mb-4">
                 <p className="text-sm font-medium mb-2">⚡ إضافة سريعة:</p>
                 <div className="flex flex-wrap gap-2">
@@ -250,7 +260,6 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                 </div>
               </div>
 
-              {/* عرض المدة */}
               {duration !== null && (
                 <div className="bg-white border-2 border-blue-300 rounded-lg p-4">
                   {duration > 0 ? (
@@ -273,60 +282,107 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
               )}
             </div>
 
-            {/* السعر والمتبقي وحصص PT */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  سعر الاشتراك <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={formData.subscriptionPrice}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-                    setFormData({ ...formData, subscriptionPrice: value })
-                  }}
-                  step="1"
-                  className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                  placeholder="0"
-                />
-              </div>
+            {/* ✅ قسم السعر والمتبقي والحصص */}
+            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-5">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <span>💰</span>
+                <span>المبالغ والحصص</span>
+              </h3>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  المبلغ المتبقي
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.remainingAmount}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-                    setFormData({ ...formData, remainingAmount: value })
-                  }}
-                  step="1"
-                  className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                  placeholder="0"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    سعر الاشتراك <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.subscriptionPrice}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                      setFormData({ ...formData, subscriptionPrice: value })
+                    }}
+                    step="1"
+                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                    placeholder="0"
+                  />
+                </div>
 
-              {/* ✅ حقل جديد: حصص PT المجانية */}
-              <div>
-                <label className="block text-sm font-medium mb-2 flex items-center gap-1">
-                  <span>💪</span>
-                  <span>حصص PT مجانية</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.freePTSessions}
-                  onChange={(e) => setFormData({ ...formData, freePTSessions: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                  placeholder="0"
-                />
-                <p className="text-xs text-gray-500 mt-1">حصص إضافية مع التجديد</p>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    المبلغ المتبقي
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.remainingAmount}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
+                      setFormData({ ...formData, remainingAmount: value })
+                    }}
+                    step="1"
+                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* ✅ حقل حصص PT المجانية */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
+                    <span>💪</span>
+                    <span>حصص PT إضافية</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.freePTSessions}
+                    onChange={(e) => setFormData({ ...formData, freePTSessions: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    سيتم إضافتها للحصص الحالية ({member.freePTSessions || 0})
+                  </p>
+                </div>
+
+                {/* ✅ حقل حصص InBody */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
+                    <span>⚖️</span>
+                    <span>حصص InBody إضافية</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.inBodyScans}
+                    onChange={(e) => setFormData({ ...formData, inBodyScans: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    سيتم إضافتها للحصص الحالية ({member.inBodyScans || 0})
+                  </p>
+                </div>
+
+                {/* ✅ حقل الدعوات */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
+                    <span>🎟️</span>
+                    <span>دعوات إضافية</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.invitations}
+                    onChange={(e) => setFormData({ ...formData, invitations: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    سيتم إضافتها للدعوات الحالية ({member.invitations || 0})
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -362,10 +418,36 @@ export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormP
                   </div>
                 )}
                 
-                {formData.freePTSessions > 0 && (
-                  <div className="flex justify-between text-lg bg-green-100 p-2 rounded">
-                    <span className="text-gray-600">💪 حصص PT مجانية:</span>
-                    <span className="font-bold text-green-600">{formData.freePTSessions} حصة</span>
+                {/* ✅ عرض الحصص الإضافية */}
+                {(formData.freePTSessions > 0 || formData.inBodyScans > 0 || formData.invitations > 0) && (
+                  <div className="bg-white border-2 border-green-300 rounded-lg p-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">الحصص الإضافية:</p>
+                    <div className="space-y-1 text-sm">
+                      {formData.freePTSessions > 0 && (
+                        <div className="flex justify-between">
+                          <span>💪 PT:</span>
+                          <span className="font-bold text-orange-600">
+                            +{formData.freePTSessions} (الإجمالي: {(member.freePTSessions || 0) + formData.freePTSessions})
+                          </span>
+                        </div>
+                      )}
+                      {formData.inBodyScans > 0 && (
+                        <div className="flex justify-between">
+                          <span>⚖️ InBody:</span>
+                          <span className="font-bold text-green-600">
+                            +{formData.inBodyScans} (الإجمالي: {(member.inBodyScans || 0) + formData.inBodyScans})
+                          </span>
+                        </div>
+                      )}
+                      {formData.invitations > 0 && (
+                        <div className="flex justify-between">
+                          <span>🎟️ دعوات:</span>
+                          <span className="font-bold text-purple-600">
+                            +{formData.invitations} (الإجمالي: {(member.invitations || 0) + formData.invitations})
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 

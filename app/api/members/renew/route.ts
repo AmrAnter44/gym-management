@@ -5,9 +5,29 @@ import { prisma } from '../../../../lib/prisma'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberId, subscriptionPrice, remainingAmount, freePTSessions, startDate, expiryDate, notes, paymentMethod } = body
+    const { 
+      memberId, 
+      subscriptionPrice, 
+      remainingAmount, 
+      freePTSessions, 
+      inBodyScans,      // ✅ إضافة InBody
+      invitations,       // ✅ إضافة Invitations
+      startDate, 
+      expiryDate, 
+      notes, 
+      paymentMethod 
+    } = body
 
-    console.log('🔄 تجديد اشتراك عضو:', { memberId, subscriptionPrice, freePTSessions, startDate, expiryDate, paymentMethod })
+    console.log('🔄 تجديد اشتراك عضو:', { 
+      memberId, 
+      subscriptionPrice, 
+      freePTSessions, 
+      inBodyScans, 
+      invitations, 
+      startDate, 
+      expiryDate, 
+      paymentMethod 
+    })
 
     // جلب بيانات العضو
     const member = await prisma.member.findUnique({
@@ -23,7 +43,19 @@ export async function POST(request: Request) {
     const additionalFreePT = freePTSessions || 0
     const totalFreePT = currentFreePT + additionalFreePT
 
+    // ✅ حساب InBody الجديد (الحالي + الإضافي)
+    const currentInBody = member.inBodyScans || 0
+    const additionalInBody = inBodyScans || 0
+    const totalInBody = currentInBody + additionalInBody
+
+    // ✅ حساب Invitations الجديد (الحالي + الإضافي)
+    const currentInvitations = member.invitations || 0
+    const additionalInvitations = invitations || 0
+    const totalInvitations = currentInvitations + additionalInvitations
+
     console.log('💪 حصص PT: الحالية =', currentFreePT, '+ الإضافية =', additionalFreePT, '= الإجمالي =', totalFreePT)
+    console.log('⚖️ InBody: الحالي =', currentInBody, '+ الإضافي =', additionalInBody, '= الإجمالي =', totalInBody)
+    console.log('🎟️ Invitations: الحالية =', currentInvitations, '+ الإضافية =', additionalInvitations, '= الإجمالي =', totalInvitations)
 
     // تحديث بيانات العضو
     const updatedMember = await prisma.member.update({
@@ -31,7 +63,9 @@ export async function POST(request: Request) {
       data: {
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
-        freePTSessions: totalFreePT, // ✅ تحديث حصص PT المجانية
+        freePTSessions: totalFreePT,     // ✅ تحديث حصص PT المجانية
+        inBodyScans: totalInBody,        // ✅ تحديث InBody
+        invitations: totalInvitations,   // ✅ تحديث Invitations
         startDate: startDate ? new Date(startDate) : null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         isActive: true,
@@ -39,7 +73,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ تم تحديث بيانات العضو - حصص PT الجديدة:', updatedMember.freePTSessions)
+    console.log('✅ تم تحديث بيانات العضو - PT:', updatedMember.freePTSessions, 'InBody:', updatedMember.inBodyScans, 'Invitations:', updatedMember.invitations)
 
     // إنشاء إيصال التجديد
     try {
@@ -66,7 +100,7 @@ export async function POST(request: Request) {
       const receipt = await prisma.receipt.create({
         data: {
           receiptNumber: counter.current,
-          type: 'Member',
+          type: 'تجديد عضويه', // ✅ تغيير النوع من Member إلى Renewal
           amount: paidAmount,
           paymentMethod: paymentMethod || 'cash',
           itemDetails: JSON.stringify({
@@ -75,14 +109,24 @@ export async function POST(request: Request) {
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
-            freePTSessions: additionalFreePT, // ✅ حصص PT الإضافية في الإيصال
+            // ✅ حصص PT في الإيصال
+            freePTSessions: additionalFreePT,
             previousFreePTSessions: currentFreePT,
             totalFreePTSessions: totalFreePT,
+            // ✅ InBody في الإيصال
+            inBodyScans: additionalInBody,
+            previousInBodyScans: currentInBody,
+            totalInBodyScans: totalInBody,
+            // ✅ Invitations في الإيصال
+            invitations: additionalInvitations,
+            previousInvitations: currentInvitations,
+            totalInvitations: totalInvitations,
+            // التواريخ
             previousExpiryDate: member.expiryDate,
             newStartDate: startDate,
             newExpiryDate: expiryDate,
             subscriptionDays: subscriptionDays,
-            isRenewal: true,
+            isRenewal: true, // ✅ علامة التجديد
           }),
           memberId: member.id,
         },
@@ -109,7 +153,6 @@ export async function POST(request: Request) {
 
     } catch (receiptError) {
       console.error('❌ خطأ في إنشاء إيصال التجديد:', receiptError)
-      // العضو تم تحديثه بنجاح، لكن الإيصال فشل
       return NextResponse.json({
         member: updatedMember,
         receipt: null,

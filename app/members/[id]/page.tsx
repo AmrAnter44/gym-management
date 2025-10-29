@@ -56,6 +56,13 @@ export default function MemberDetailPage() {
     reason: ''
   })
 
+  // 🆕 بيانات نموذج الدعوة
+  const [invitationData, setInvitationData] = useState({
+    guestName: '',
+    guestPhone: '',
+    notes: ''
+  })
+
   const [activeModal, setActiveModal] = useState<string | null>(null)
 
   // جلب بيانات العضو
@@ -200,7 +207,7 @@ export default function MemberDetailPage() {
     })
   }
 
-  // تنقيص حصة دعوة
+  // 🆕 تنقيص حصة دعوة - فتح نموذج إدخال تفاصيل الضيف
   const handleUseInvitation = async () => {
     if (!member || (member.invitations ?? 0) <= 0) {
       setMessage('⚠️ لا توجد دعوات متبقية')
@@ -208,35 +215,63 @@ export default function MemberDetailPage() {
       return
     }
 
-    setConfirmModal({
-      show: true,
-      title: '🎟️ استخدام دعوة',
-      message: 'هل تريد تنقيص حصة دعوة؟',
-      onConfirm: async () => {
-        setConfirmModal(null)
-        setLoading(true)
-        try {
-          const response = await fetch('/api/members', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: member.id,
-              invitations: (member.invitations ?? 0) - 1
-            })
-          })
+    // فتح نموذج إدخال تفاصيل الضيف
+    setActiveModal('invitation')
+  }
 
-          if (response.ok) {
-            setMessage('✅ تم تنقيص حصة الدعوة')
-            setTimeout(() => setMessage(''), 3000)
-            fetchMember()
-          }
-        } catch (error) {
-          setMessage('❌ حدث خطأ')
-        } finally {
-          setLoading(false)
-        }
+  // 🆕 إرسال بيانات الدعوة
+  const handleSubmitInvitation = async () => {
+    if (!member) return
+
+    // التحقق من البيانات المطلوبة
+    if (!invitationData.guestName.trim() || !invitationData.guestPhone.trim()) {
+      setMessage('⚠️ يرجى إدخال اسم ورقم هاتف الضيف')
+      setTimeout(() => setMessage(''), 3000)
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const response = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: member.id,
+          guestName: invitationData.guestName.trim(),
+          guestPhone: invitationData.guestPhone.trim(),
+          notes: invitationData.notes.trim() || undefined
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage('✅ تم تسجيل الدعوة بنجاح!')
+        setTimeout(() => setMessage(''), 3000)
+        
+        // إعادة تعيين النموذج
+        setInvitationData({
+          guestName: '',
+          guestPhone: '',
+          notes: ''
+        })
+        setActiveModal(null)
+        
+        // تحديث بيانات العضو
+        fetchMember()
+      } else {
+        setMessage(`❌ ${result.error || 'فشل تسجيل الدعوة'}`)
+        setTimeout(() => setMessage(''), 3000)
       }
-    })
+    } catch (error) {
+      console.error(error)
+      setMessage('❌ حدث خطأ في الاتصال')
+      setTimeout(() => setMessage(''), 3000)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // تنقيص حصة PT مجانية
@@ -316,7 +351,7 @@ export default function MemberDetailPage() {
     }
   }
 
-  // ✅ حذف العضو
+  // حذف العضو
   const handleDelete = async () => {
     if (!member) return
 
@@ -542,7 +577,7 @@ export default function MemberDetailPage() {
         </div>
       </div>
 
-      {/* ✅ قسم التجديد والحذف */}
+      {/* قسم التجديد والحذف */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* تجديد الاشتراك */}
         <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-xl shadow-lg p-6">
@@ -804,7 +839,123 @@ export default function MemberDetailPage() {
         </div>
       )}
 
-      {/* ✅ نموذج التجديد */}
+      {/* 🆕 Modal: إدخال تفاصيل الضيف (الدعوة) */}
+      {activeModal === 'invitation' && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setActiveModal(null)
+              setInvitationData({ guestName: '', guestPhone: '', notes: '' })
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold flex items-center gap-2">
+                <span>🎟️</span>
+                <span>تسجيل دعوة ضيف</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setActiveModal(null)
+                  setInvitationData({ guestName: '', guestPhone: '', notes: '' })
+                }}
+                className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="bg-purple-50 border-r-4 border-purple-500 p-4 rounded-lg mb-6">
+              <p className="font-bold text-purple-800">
+                العضو: {member.name} (#{member.memberNumber})
+              </p>
+              <p className="text-sm text-purple-700 mt-1">
+                الدعوات المتبقية: {member.invitations ?? 0}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  اسم الضيف <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={invitationData.guestName}
+                  onChange={(e) => setInvitationData({ ...invitationData, guestName: e.target.value })}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  placeholder="أدخل اسم الضيف"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  رقم هاتف الضيف <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={invitationData.guestPhone}
+                  onChange={(e) => setInvitationData({ ...invitationData, guestPhone: e.target.value })}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500 font-mono"
+                  placeholder="01xxxxxxxxx"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">ملاحظات</label>
+                <textarea
+                  value={invitationData.notes}
+                  onChange={(e) => setInvitationData({ ...invitationData, notes: e.target.value })}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  rows={3}
+                  placeholder="ملاحظات إضافية عن الضيف..."
+                />
+              </div>
+
+              <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-green-800">
+                  <span className="text-xl">✅</span>
+                  <div>
+                    <p className="font-semibold">سيتم:</p>
+                    <p className="text-sm">• تسجيل دعوة الضيف</p>
+                    <p className="text-sm">• تنقيص دعوة واحدة من العضو</p>
+                    <p className="text-sm">• حفظ البيانات في سجل الدعوات</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleSubmitInvitation}
+                  disabled={loading || !invitationData.guestName.trim() || !invitationData.guestPhone.trim()}
+                  className="flex-1 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 font-bold"
+                >
+                  {loading ? 'جاري الحفظ...' : '✅ تسجيل الدعوة'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModal(null)
+                    setInvitationData({ guestName: '', guestPhone: '', notes: '' })
+                  }}
+                  className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* نموذج التجديد */}
       {showRenewalForm && (
         <RenewalForm
           member={member}

@@ -4,14 +4,32 @@ import { prisma } from '../../../lib/prisma'
 // GET - جلب كل الأعضاء
 export async function GET() {
   try {
+    console.log('🔍 بدء جلب الأعضاء...')
+    
     const members = await prisma.member.findMany({
       orderBy: { createdAt: 'desc' },
       include: { receipts: true }
     })
-    return NextResponse.json(members)
+    
+    console.log('✅ تم جلب', members.length, 'عضو')
+    
+    // ✅ التأكد من إرجاع array دائماً
+    if (!Array.isArray(members)) {
+      console.error('❌ Prisma لم يرجع array:', typeof members)
+      return NextResponse.json([], { status: 200 })
+    }
+    
+    return NextResponse.json(members, { status: 200 })
   } catch (error) {
-    console.error('Error fetching members:', error)
-    return NextResponse.json({ error: 'فشل جلب الأعضاء' }, { status: 500 })
+    console.error('❌ Error fetching members:', error)
+    
+    // ✅ إرجاع array فاضي في حالة الخطأ
+    return NextResponse.json([], { 
+      status: 200,
+      headers: {
+        'X-Error': 'Failed to fetch members'
+      }
+    })
   }
 }
 
@@ -59,7 +77,7 @@ export async function POST(request: Request) {
         phone,
         inBodyScans: inBodyScans || 0,
         invitations: invitations || 0,
-        freePTSessions: freePTSessions || 0, // ✅ إضافة حصص PT المجانية
+        freePTSessions: freePTSessions || 0,
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
         notes,
@@ -105,7 +123,9 @@ export async function POST(request: Request) {
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
-            freePTSessions: freePTSessions || 0, // ✅ إضافة حصص PT في الإيصال
+            freePTSessions: freePTSessions || 0,
+            inBodyScans: inBodyScans || 0,
+            invitations: invitations || 0,
             startDate: startDate,
             expiryDate: expiryDate,
             subscriptionDays: subscriptionDays,

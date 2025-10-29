@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface SearchResult {
   type: 'member' | 'pt'
@@ -10,6 +11,7 @@ interface SearchResult {
 type SearchMode = 'id' | 'name'
 
 export default function SearchPage() {
+  const router = useRouter()
   const [searchMode, setSearchMode] = useState<SearchMode>('id')
   const [memberId, setMemberId] = useState('')
   const [searchName, setSearchName] = useState('')
@@ -22,7 +24,6 @@ export default function SearchPage() {
   const nameRef = useRef<HTMLInputElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
 
-  // Auto-focus على الحقل المناسب عند تغيير الوضع
   useEffect(() => {
     if (searchMode === 'id') {
       memberIdRef.current?.focus()
@@ -31,7 +32,6 @@ export default function SearchPage() {
     }
   }, [searchMode])
 
-  // إنشاء صوت تنبيه
   const playSound = (isSuccess: boolean) => {
     try {
       if (!audioContextRef.current) {
@@ -64,7 +64,6 @@ export default function SearchPage() {
     }
   }
 
-  // البحث بـ ID
   const handleSearchById = async () => {
     if (!memberId.trim()) {
       playSound(false)
@@ -96,7 +95,6 @@ export default function SearchPage() {
         playSound(false)
       }
 
-      // مسح الحقل والتركيز عليه مرة أخرى
       setMemberId('')
       setTimeout(() => {
         memberIdRef.current?.focus()
@@ -111,7 +109,6 @@ export default function SearchPage() {
     }
   }
 
-  // البحث بالاسم والرقم
   const handleSearchByName = async () => {
     if (!searchName.trim() && !searchPhone.trim()) {
       playSound(false)
@@ -124,15 +121,12 @@ export default function SearchPage() {
     const foundResults: SearchResult[] = []
 
     try {
-      // جلب الأعضاء
       const membersRes = await fetch('/api/members')
       const members = await membersRes.json()
 
-      // جلب جلسات PT
       const ptRes = await fetch('/api/pt')
       const ptSessions = await ptRes.json()
 
-      // البحث في الأعضاء
       const filteredMembers = members.filter((m: any) => {
         const nameMatch = searchName.trim() 
           ? m.name.toLowerCase().includes(searchName.trim().toLowerCase())
@@ -147,7 +141,6 @@ export default function SearchPage() {
         foundResults.push({ type: 'member', data: member })
       })
 
-      // البحث في جلسات PT
       const filteredPT = ptSessions.filter((pt: any) => {
         const nameMatch = searchName.trim()
           ? pt.clientName.toLowerCase().includes(searchName.trim().toLowerCase())
@@ -202,6 +195,16 @@ export default function SearchPage() {
     return diffDays
   }
 
+  // 🆕 فتح صفحة تفاصيل العضو
+  const handleViewMemberDetails = (memberId: string) => {
+    router.push(`/members/${memberId}`)
+  }
+
+  // 🆕 فتح صفحة تفاصيل PT
+  const handleViewPTDetails = (ptId: string) => {
+    router.push(`/pt/${ptId}`)
+  }
+
   return (
     <div className="container mx-auto p-6 min-h-screen" dir="rtl">
       <div className="mb-6">
@@ -212,7 +215,6 @@ export default function SearchPage() {
         <p className="text-gray-600">سكان سريع أو بحث بالاسم - الصوت يؤكد النتيجة تلقائياً</p>
       </div>
 
-      {/* أزرار التبديل */}
       <div className="bg-white p-4 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
         <div className="flex gap-3">
           <button
@@ -246,7 +248,6 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {/* قسم البحث بـ ID */}
       {searchMode === 'id' && (
         <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-blue-200">
           <div className="mb-6">
@@ -280,7 +281,6 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* قسم البحث بالاسم والرقم */}
       {searchMode === 'name' && (
         <div className="bg-white p-8 rounded-2xl shadow-lg mb-6 border-4 border-green-200">
           <label className="block text-2xl font-bold mb-4 text-green-800 flex items-center gap-2">
@@ -329,14 +329,12 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* عرض آخر عملية بحث */}
       {lastSearchTime && (
         <div className="bg-gray-100 p-3 rounded-lg text-center text-sm text-gray-600 mb-4">
           آخر بحث: {lastSearchTime.toLocaleTimeString('ar-EG')}
         </div>
       )}
 
-      {/* نتائج البحث */}
       {searched && (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-4 border-green-200 animate-fadeIn">
           {loading ? (
@@ -380,7 +378,7 @@ export default function SearchPage() {
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                           <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الهاتف</p>
                             <p className="text-xl font-bold">{result.data.phone}</p>
@@ -406,7 +404,7 @@ export default function SearchPage() {
                         </div>
 
                         {result.data.expiryDate && (
-                          <div className="mt-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                          <div className="mb-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-sm text-gray-600">تاريخ الانتهاء</p>
@@ -447,6 +445,18 @@ export default function SearchPage() {
                             </div>
                           </div>
                         )}
+
+                        {/* 🆕 زر عرض التفاصيل الكاملة */}
+                        <div className="grid grid-cols-1 gap-3">
+                          <button
+                            onClick={() => handleViewMemberDetails(result.data.id)}
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl font-bold text-lg flex items-center justify-center gap-3"
+                          >
+                            <span>👁️</span>
+                            <span>عرض التفاصيل الكاملة</span>
+                            <span>➡️</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                     
@@ -461,7 +471,7 @@ export default function SearchPage() {
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                           <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-sm text-gray-600">الهاتف</p>
                             <p className="text-xl font-bold">{result.data.phone}</p>
@@ -479,6 +489,16 @@ export default function SearchPage() {
                             <p className="text-xl font-bold">{result.data.pricePerSession} ج.م</p>
                           </div>
                         </div>
+
+                        {/* 🆕 زر عرض تفاصيل PT */}
+                        <button
+                          onClick={() => handleViewPTDetails(result.data.id)}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl font-bold text-lg flex items-center justify-center gap-3"
+                        >
+                          <span>👁️</span>
+                          <span>عرض التفاصيل الكاملة</span>
+                          <span>➡️</span>
+                        </button>
                       </div>
                     )}
                   </div>

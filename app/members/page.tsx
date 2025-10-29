@@ -24,8 +24,14 @@ interface Member {
 export default function MembersPage() {
   const router = useRouter()
   const [members, setMembers] = useState<Member[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  
+  // 🆕 حقول البحث
+  const [searchId, setSearchId] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [searchPhone, setSearchPhone] = useState('')
 
   const fetchMembers = async () => {
     try {
@@ -34,13 +40,16 @@ export default function MembersPage() {
       
       if (Array.isArray(data)) {
         setMembers(data)
+        setFilteredMembers(data)
       } else {
         console.error('Invalid data format:', data)
         setMembers([])
+        setFilteredMembers([])
       }
     } catch (error) {
       console.error('Error fetching members:', error)
       setMembers([])
+      setFilteredMembers([])
     } finally {
       setLoading(false)
     }
@@ -50,8 +59,41 @@ export default function MembersPage() {
     fetchMembers()
   }, [])
 
+  // 🆕 البحث المباشر (يتم تحديثه مع كل حرف)
+  useEffect(() => {
+    if (!searchId && !searchName && !searchPhone) {
+      setFilteredMembers(members)
+      return
+    }
+
+    const filtered = members.filter((member) => {
+      const idMatch = searchId 
+        ? member.memberNumber.toString().includes(searchId)
+        : true
+      
+      const nameMatch = searchName
+        ? member.name.toLowerCase().includes(searchName.toLowerCase())
+        : true
+      
+      const phoneMatch = searchPhone
+        ? member.phone.includes(searchPhone)
+        : true
+      
+      return idMatch && nameMatch && phoneMatch
+    })
+
+    setFilteredMembers(filtered)
+  }, [searchId, searchName, searchPhone, members])
+
   const handleViewDetails = (memberId: string) => {
     router.push(`/members/${memberId}`)
+  }
+
+  // 🆕 مسح جميع حقول البحث
+  const clearSearch = () => {
+    setSearchId('')
+    setSearchName('')
+    setSearchPhone('')
   }
 
   return (
@@ -76,6 +118,67 @@ export default function MembersPage() {
         </div>
       )}
 
+      {/* 🆕 قسم البحث المباشر */}
+      <div className="bg-white p-6 rounded-xl shadow-lg mb-6 border-2 border-blue-200">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <span>🔍</span>
+            <span>بحث مباشر</span>
+          </h3>
+          {(searchId || searchName || searchPhone) && (
+            <button
+              onClick={clearSearch}
+              className="bg-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-200 text-sm font-medium"
+            >
+              ✖️ مسح البحث
+            </button>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">رقم العضوية (ID)</label>
+            <input
+              type="text"
+              value={searchId}
+              onChange={(e) => setSearchId(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
+              placeholder="ابحث برقم العضوية..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">الاسم</label>
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
+              placeholder="ابحث بالاسم..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">رقم الهاتف</label>
+            <input
+              type="text"
+              value={searchPhone}
+              onChange={(e) => setSearchPhone(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition"
+              placeholder="ابحث برقم الهاتف..."
+            />
+          </div>
+        </div>
+
+        {(searchId || searchName || searchPhone) && (
+          <div className="mt-4 text-center">
+            <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg text-sm font-medium">
+              📊 عرض {filteredMembers.length} من {members.length} عضو
+            </span>
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="text-center py-12">جاري التحميل...</div>
       ) : (
@@ -98,7 +201,7 @@ export default function MembersPage() {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(members) && members.map((member) => {
+                {Array.isArray(filteredMembers) && filteredMembers.map((member) => {
                   const isExpired = member.expiryDate ? new Date(member.expiryDate) < new Date() : false
                   const daysRemaining = calculateRemainingDays(member.expiryDate)
                   const isExpiringSoon = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
@@ -144,7 +247,6 @@ export default function MembersPage() {
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3">
-                        {/* ✅ زر "عرض" فقط - التجديد والحذف داخل صفحة التفاصيل */}
                         <button
                           onClick={() => handleViewDetails(member.id)}
                           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition shadow-md hover:shadow-lg font-medium"
@@ -160,9 +262,19 @@ export default function MembersPage() {
             </table>
           </div>
 
-          {members.length === 0 && (
+          {filteredMembers.length === 0 && !loading && (
             <div className="text-center py-12 text-gray-500">
-              لا يوجد أعضاء حالياً
+              {(searchId || searchName || searchPhone) ? (
+                <>
+                  <div className="text-6xl mb-4">🔍</div>
+                  <p className="text-xl">لا توجد نتائج مطابقة للبحث</p>
+                </>
+              ) : (
+                <>
+                  <div className="text-6xl mb-4">📋</div>
+                  <p className="text-xl">لا يوجد أعضاء حالياً</p>
+                </>
+              )}
             </div>
           )}
         </div>
