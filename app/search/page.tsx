@@ -367,11 +367,30 @@ export default function SearchPage() {
                     {result.type === 'member' && (
                       <div>
                         <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <span className="bg-blue-500 text-white px-4 py-2 rounded-lg text-lg font-bold">
-                              👤 عضو
-                            </span>
-                            <h3 className="text-3xl font-bold mt-3">{result.data.name}</h3>
+                          <div className="flex items-center gap-4">
+                            {/* ✅ صورة العضو */}
+                            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-blue-300 bg-gray-100 flex-shrink-0">
+                              {result.data.profileImage ? (
+                                <img 
+                                  src={result.data.profileImage} 
+                                  alt={result.data.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div>
+                              <span className="bg-blue-500 text-white px-4 py-2 rounded-lg text-lg font-bold">
+                                👤 عضو
+                              </span>
+                              <h3 className="text-3xl font-bold mt-3">{result.data.name}</h3>
+                            </div>
                           </div>
                           <span className="text-5xl font-bold text-blue-600">
                             #{result.data.memberNumber}
