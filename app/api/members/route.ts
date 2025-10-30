@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       memberNumber, 
       name, 
       phone, 
-      profileImage, // ✅ إضافة الصورة
+      profileImage,
       inBodyScans, 
       invitations, 
       freePTSessions, 
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         memberNumber: memberNumber ? parseInt(memberNumber) : undefined,
         name,
         phone,
-        profileImage, // ✅ حفظ الصورة
+        profileImage,
         inBodyScans: inBodyScans || 0,
         invitations: invitations || 0,
         freePTSessions: freePTSessions || 0,
@@ -103,6 +103,7 @@ export async function POST(request: Request) {
     console.log('✅ تم إنشاء العضو:', member.id, 'صورة:', member.profileImage)
 
     // إنشاء إيصال دائماً
+    let receiptData = null
     try {
       let counter = await prisma.receiptCounter.findUnique({ where: { id: 1 } })
       
@@ -155,11 +156,27 @@ export async function POST(request: Request) {
       })
 
       console.log('🔄 تم تحديث عداد الإيصالات إلى:', counter.current + 1)
+
+      // ✅ تجهيز بيانات الإيصال للإرجاع
+      receiptData = {
+        receiptNumber: receipt.receiptNumber,
+        amount: receipt.amount,
+        paymentMethod: receipt.paymentMethod,
+        createdAt: receipt.createdAt,
+        itemDetails: JSON.parse(receipt.itemDetails)
+      }
+
     } catch (receiptError) {
       console.error('❌ خطأ في إنشاء الإيصال:', receiptError)
     }
 
-    return NextResponse.json(member, { status: 201 })
+    // ✅ إرجاع بيانات العضو + الإيصال
+    return NextResponse.json({
+      success: true,
+      member: member,
+      receipt: receiptData
+    }, { status: 201 })
+
   } catch (error) {
     console.error('❌ خطأ في إضافة العضو:', error)
     return NextResponse.json({ error: 'فشل إضافة العضو' }, { status: 500 })
@@ -170,11 +187,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, profileImage, ...data } = body // ✅ استقبال الصورة
+    const { id, profileImage, ...data } = body
 
     const updateData: any = { ...data }
     
-    // ✅ تحديث الصورة إذا تم إرسالها
     if (profileImage !== undefined) {
       updateData.profileImage = profileImage
     }

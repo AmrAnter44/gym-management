@@ -11,7 +11,7 @@ interface Member {
   memberNumber: number
   name: string
   phone: string
-  profileImage?: string | null // ✅ إضافة الصورة
+  profileImage?: string | null
   inBodyScans: number
   invitations: number
   subscriptionPrice: number
@@ -33,6 +33,10 @@ export default function MembersPage() {
   const [searchId, setSearchId] = useState('')
   const [searchName, setSearchName] = useState('')
   const [searchPhone, setSearchPhone] = useState('')
+  
+  // ✅ فلاتر الاشتراكات الجديدة
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired' | 'expiring-soon' | 'has-remaining'>('all')
+  const [specificDate, setSpecificDate] = useState('')
 
   const fetchMembers = async () => {
     try {
@@ -60,30 +64,67 @@ export default function MembersPage() {
     fetchMembers()
   }, [])
 
+  // ✅ useEffect محدث مع الفلاتر الجديدة
   useEffect(() => {
-    if (!searchId && !searchName && !searchPhone) {
-      setFilteredMembers(members)
-      return
+    let filtered = members
+
+    // فلتر البحث بالنص
+    if (searchId || searchName || searchPhone) {
+      filtered = filtered.filter((member) => {
+        const idMatch = searchId 
+          ? member.memberNumber.toString().includes(searchId)
+          : true
+        
+        const nameMatch = searchName
+          ? member.name.toLowerCase().includes(searchName.toLowerCase())
+          : true
+        
+        const phoneMatch = searchPhone
+          ? member.phone.includes(searchPhone)
+          : true
+        
+        return idMatch && nameMatch && phoneMatch
+      })
     }
 
-    const filtered = members.filter((member) => {
-      const idMatch = searchId 
-        ? member.memberNumber.toString().includes(searchId)
-        : true
-      
-      const nameMatch = searchName
-        ? member.name.toLowerCase().includes(searchName.toLowerCase())
-        : true
-      
-      const phoneMatch = searchPhone
-        ? member.phone.includes(searchPhone)
-        : true
-      
-      return idMatch && nameMatch && phoneMatch
-    })
+    // ✅ فلتر حسب حالة الاشتراك
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter((member) => {
+        const isExpired = member.expiryDate ? new Date(member.expiryDate) < new Date() : false
+        const daysRemaining = calculateRemainingDays(member.expiryDate)
+        const isExpiringSoon = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
+
+        if (filterStatus === 'expired') {
+          return isExpired
+        } else if (filterStatus === 'expiring-soon') {
+          return isExpiringSoon
+        } else if (filterStatus === 'active') {
+          return member.isActive && !isExpired
+        } else if (filterStatus === 'has-remaining') {
+          return member.remainingAmount > 0
+        }
+        return true
+      })
+    }
+
+    // ✅ فلتر حسب تاريخ معين
+    if (specificDate) {
+      filtered = filtered.filter((member) => {
+        if (!member.expiryDate) return false
+        const expiryDate = new Date(member.expiryDate)
+        const selectedDate = new Date(specificDate)
+        
+        // مقارنة التواريخ (السنة، الشهر، اليوم فقط)
+        return (
+          expiryDate.getFullYear() === selectedDate.getFullYear() &&
+          expiryDate.getMonth() === selectedDate.getMonth() &&
+          expiryDate.getDate() === selectedDate.getDate()
+        )
+      })
+    }
 
     setFilteredMembers(filtered)
-  }, [searchId, searchName, searchPhone, members])
+  }, [searchId, searchName, searchPhone, filterStatus, specificDate, members])
 
   const handleViewDetails = (memberId: string) => {
     router.push(`/members/${memberId}`)
@@ -93,6 +134,31 @@ export default function MembersPage() {
     setSearchId('')
     setSearchName('')
     setSearchPhone('')
+  }
+
+  const clearAllFilters = () => {
+    setSearchId('')
+    setSearchName('')
+    setSearchPhone('')
+    setFilterStatus('all')
+    setSpecificDate('')
+  }
+
+  // ✅ حساب إحصائيات الأعضاء
+  const stats = {
+    total: members.length,
+    active: members.filter(m => {
+      const isExpired = m.expiryDate ? new Date(m.expiryDate) < new Date() : false
+      return m.isActive && !isExpired
+    }).length,
+    expired: members.filter(m => {
+      return m.expiryDate ? new Date(m.expiryDate) < new Date() : false
+    }).length,
+    expiringSoon: members.filter(m => {
+      const daysRemaining = calculateRemainingDays(m.expiryDate)
+      return daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
+    }).length,
+    hasRemaining: members.filter(m => m.remainingAmount > 0).length
   }
 
   return (
@@ -116,6 +182,140 @@ export default function MembersPage() {
           }} />
         </div>
       )}
+
+      {/* ✅ إحصائيات سريعة */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold">{stats.total}</div>
+          <div className="text-sm opacity-90">إجمالي الأعضاء</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold">{stats.active}</div>
+          <div className="text-sm opacity-90">أعضاء نشطين</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold">{stats.expiringSoon}</div>
+          <div className="text-sm opacity-90">ينتهي قريباً (7 أيام)</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-4 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold">{stats.expired}</div>
+          <div className="text-sm opacity-90">منتهي الاشتراك</div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-4 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold">{stats.hasRemaining}</div>
+          <div className="text-sm opacity-90">عليهم متبقي</div>
+        </div>
+      </div>
+
+      {/* ✅ فلاتر سريعة */}
+      <div className="bg-white p-6 rounded-xl shadow-lg mb-6 border-2 border-purple-200">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <span>🎯</span>
+            <span>فلاتر سريعة</span>
+          </h3>
+          {(filterStatus !== 'all' || specificDate) && (
+            <button
+              onClick={() => {
+                setFilterStatus('all')
+                setSpecificDate('')
+              }}
+              className="bg-purple-100 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-200 text-sm font-medium"
+            >
+              ✖️ مسح الفلاتر
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-4 py-3 rounded-lg font-medium transition ${
+              filterStatus === 'all'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            📊 الكل ({stats.total})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('active')}
+            className={`px-4 py-3 rounded-lg font-medium transition ${
+              filterStatus === 'active'
+                ? 'bg-green-600 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ✅ نشط ({stats.active})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('expiring-soon')}
+            className={`px-4 py-3 rounded-lg font-medium transition ${
+              filterStatus === 'expiring-soon'
+                ? 'bg-orange-600 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ⚠️ ينتهي قريباً ({stats.expiringSoon})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('expired')}
+            className={`px-4 py-3 rounded-lg font-medium transition ${
+              filterStatus === 'expired'
+                ? 'bg-red-600 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ❌ منتهي ({stats.expired})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('has-remaining')}
+            className={`px-4 py-3 rounded-lg font-medium transition ${
+              filterStatus === 'has-remaining'
+                ? 'bg-yellow-600 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            💰 عليهم متبقي ({stats.hasRemaining})
+          </button>
+        </div>
+
+        {/* ✅ فلتر التاريخ المحدد */}
+        <div className="border-t pt-4">
+          <label className="block text-sm font-medium mb-2">
+            📅 فلتر حسب تاريخ انتهاء معين
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={specificDate}
+              onChange={(e) => setSpecificDate(e.target.value)}
+              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none transition"
+            />
+            {specificDate && (
+              <button
+                onClick={() => setSpecificDate('')}
+                className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                ✖️
+              </button>
+            )}
+          </div>
+          {specificDate && (
+            <p className="text-sm text-purple-600 mt-2">
+              🔍 عرض الأعضاء الذين ينتهي اشتراكهم في: {new Date(specificDate).toLocaleDateString('ar-EG')}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* قسم البحث المباشر */}
       <div className="bg-white p-6 rounded-xl shadow-lg mb-6 border-2 border-blue-200">
@@ -178,6 +378,25 @@ export default function MembersPage() {
         )}
       </div>
 
+      {/* ✅ زر مسح جميع الفلاتر */}
+      {(searchId || searchName || searchPhone || filterStatus !== 'all' || specificDate) && (
+        <div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-xl mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔎</span>
+            <div>
+              <p className="font-bold text-yellow-800">الفلاتر نشطة</p>
+              <p className="text-sm text-yellow-700">عرض {filteredMembers.length} من {members.length} عضو</p>
+            </div>
+          </div>
+          <button
+            onClick={clearAllFilters}
+            className="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 font-medium"
+          >
+            🗑️ مسح جميع الفلاتر
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12">جاري التحميل...</div>
       ) : (
@@ -208,7 +427,6 @@ export default function MembersPage() {
                   
                   return (
                     <tr key={member.id} className="border-t hover:bg-gray-50">
-                      {/* ✅ صورة العضو */}
                       <td className="px-4 py-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100">
                           {member.profileImage ? (
@@ -283,10 +501,16 @@ export default function MembersPage() {
 
           {filteredMembers.length === 0 && !loading && (
             <div className="text-center py-12 text-gray-500">
-              {(searchId || searchName || searchPhone) ? (
+              {(searchId || searchName || searchPhone || filterStatus !== 'all' || specificDate) ? (
                 <>
                   <div className="text-6xl mb-4">🔍</div>
                   <p className="text-xl">لا توجد نتائج مطابقة للبحث</p>
+                  <button
+                    onClick={clearAllFilters}
+                    className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    مسح جميع الفلاتر
+                  </button>
                 </>
               ) : (
                 <>
