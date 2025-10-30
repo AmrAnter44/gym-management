@@ -1,3 +1,4 @@
+// app/members/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,6 +11,7 @@ interface Member {
   memberNumber: number
   name: string
   phone: string
+  profileImage?: string | null // ✅ إضافة الصورة
   inBodyScans: number
   invitations: number
   subscriptionPrice: number
@@ -28,7 +30,6 @@ export default function MembersPage() {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   
-  // 🆕 حقول البحث
   const [searchId, setSearchId] = useState('')
   const [searchName, setSearchName] = useState('')
   const [searchPhone, setSearchPhone] = useState('')
@@ -59,7 +60,6 @@ export default function MembersPage() {
     fetchMembers()
   }, [])
 
-  // 🆕 البحث المباشر (يتم تحديثه مع كل حرف)
   useEffect(() => {
     if (!searchId && !searchName && !searchPhone) {
       setFilteredMembers(members)
@@ -89,7 +89,6 @@ export default function MembersPage() {
     router.push(`/members/${memberId}`)
   }
 
-  // 🆕 مسح جميع حقول البحث
   const clearSearch = () => {
     setSearchId('')
     setSearchName('')
@@ -118,7 +117,7 @@ export default function MembersPage() {
         </div>
       )}
 
-      {/* 🆕 قسم البحث المباشر */}
+      {/* قسم البحث المباشر */}
       <div className="bg-white p-6 rounded-xl shadow-lg mb-6 border-2 border-blue-200">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
@@ -187,6 +186,7 @@ export default function MembersPage() {
             <table className="w-full">
               <thead className="bg-gray-100">
                 <tr>
+                  <th className="px-4 py-3 text-right">الصورة</th>
                   <th className="px-4 py-3 text-right">رقم العضوية</th>
                   <th className="px-4 py-3 text-right">الاسم</th>
                   <th className="px-4 py-3 text-right">الهاتف</th>
@@ -208,6 +208,25 @@ export default function MembersPage() {
                   
                   return (
                     <tr key={member.id} className="border-t hover:bg-gray-50">
+                      {/* ✅ صورة العضو */}
+                      <td className="px-4 py-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200 bg-gray-100">
+                          {member.profileImage ? (
+                            <img 
+                              src={member.profileImage} 
+                              alt={member.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      
                       <td className="px-4 py-3 font-bold text-blue-600">#{member.memberNumber}</td>
                       <td className="px-4 py-3">{member.name}</td>
                       <td className="px-4 py-3">{member.phone}</td>

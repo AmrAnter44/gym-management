@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { ReceiptToPrint } from '../../components/ReceiptToPrint'
 import PaymentMethodSelector from '../../components/Paymentmethodselector '
+import PTRenewalForm from '../../components/PTRenewalForm'
 import { formatDateYMD, calculateRemainingDays, calculateDaysBetween, formatDurationInMonths } from '../../lib/dateFormatter'
+import { printReceiptFromData } from '../../lib/printSystem'
 
 interface PTSession {
   ptNumber: number
@@ -23,6 +25,8 @@ export default function PTPage() {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [showRenewalForm, setShowRenewalForm] = useState(false)
+  const [selectedSession, setSelectedSession] = useState<PTSession | null>(null)
   
   const [formData, setFormData] = useState({
     ptNumber: '',
@@ -77,14 +81,12 @@ export default function PTPage() {
     setLoading(true)
     setMessage('')
 
-    // التحقق من إدخال رقم PT
     if (!formData.ptNumber) {
       setMessage('❌ يجب إدخال رقم PT')
       setLoading(false)
       return
     }
 
-    // التحقق من التواريخ
     if (formData.startDate && formData.expiryDate) {
       const start = new Date(formData.startDate)
       const end = new Date(formData.expiryDate)
@@ -108,12 +110,27 @@ export default function PTPage() {
       if (response.ok) {
         const pt = result
         
+        // طباعة الإيصال مباشرة
         try {
           const receiptsResponse = await fetch(`/api/receipts?ptNumber=${pt.ptNumber}`)
           const receipts = await receiptsResponse.json()
           
           if (receipts.length > 0) {
             const receipt = receipts[0]
+            
+            // طباعة الإيصال تلقائيًا
+            setTimeout(() => {
+              printReceiptFromData(
+                receipt.receiptNumber,
+                receipt.type,
+                receipt.amount,
+                receipt.itemDetails,
+                receipt.createdAt,
+                formData.paymentMethod
+              )
+            }, 500)
+            
+            // حفظ بيانات الإيصال للطباعة لاحقًا إذا لزم الأمر
             setReceiptData({
               receiptNumber: receipt.receiptNumber,
               type: receipt.type,
@@ -122,13 +139,11 @@ export default function PTPage() {
               date: new Date(receipt.createdAt),
               paymentMethod: formData.paymentMethod
             })
-            setShowReceipt(true)
           }
         } catch (err) {
           console.error('Error fetching receipt:', err)
         }
 
-        // تصفير الفورم
         setFormData({
           ptNumber: '',
           clientName: '',
@@ -170,6 +185,11 @@ export default function PTPage() {
     }
   }
 
+  const handleRenewal = (session: PTSession) => {
+    setSelectedSession(session)
+    setShowRenewalForm(true)
+  }
+
   const duration = calculateDuration()
 
   return (
@@ -196,7 +216,6 @@ export default function PTPage() {
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {/* رقم PT */}
               <div>
                 <label className="block text-sm font-medium mb-1">رقم PT *</label>
                 <input
@@ -209,7 +228,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* اسم العميل */}
               <div>
                 <label className="block text-sm font-medium mb-1">اسم العميل</label>
                 <input
@@ -222,7 +240,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* رقم الهاتف */}
               <div>
                 <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
                 <input
@@ -235,7 +252,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* عدد الجلسات */}
               <div>
                 <label className="block text-sm font-medium mb-1">عدد الجلسات</label>
                 <input
@@ -249,7 +265,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* اسم المدرب */}
               <div>
                 <label className="block text-sm font-medium mb-1">اسم المدرب</label>
                 <input
@@ -262,7 +277,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* سعر الجلسة */}
               <div>
                 <label className="block text-sm font-medium mb-1">سعر الجلسة</label>
                 <input
@@ -276,7 +290,6 @@ export default function PTPage() {
                 />
               </div>
 
-              {/* الإجمالي */}
               <div className="col-span-2">
                 <div className="bg-gray-100 px-3 py-2 rounded-lg">
                   <span className="text-sm text-gray-600">الإجمالي: </span>
@@ -287,7 +300,6 @@ export default function PTPage() {
               </div>
             </div>
 
-            {/* قسم التواريخ */}
             <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
               <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                 <span>📅</span>
@@ -320,7 +332,6 @@ export default function PTPage() {
                 </div>
               </div>
 
-              {/* أزرار سريعة */}
               <div className="mb-3">
                 <p className="text-sm font-medium mb-2">⚡ إضافة سريعة:</p>
                 <div className="flex flex-wrap gap-2">
@@ -356,7 +367,6 @@ export default function PTPage() {
               )}
             </div>
 
-            {/* قسم طريقة الدفع */}
             <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
               <PaymentMethodSelector
                 value={formData.paymentMethod}
@@ -443,9 +453,15 @@ export default function PTPage() {
                         <button
                           onClick={() => useSession(session.ptNumber)}
                           disabled={session.sessionsRemaining === 0}
-                          className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:bg-gray-400"
+                          className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:bg-gray-400 mb-1"
                         >
                           تسجيل حضور
+                        </button>
+                        <button
+                          onClick={() => handleRenewal(session)}
+                          className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                        >
+                          🔄 تجديد
                         </button>
                       </td>
                     </tr>
@@ -457,7 +473,7 @@ export default function PTPage() {
 
           {sessions.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              لا توجد جلسات حالياً
+              لا توجد جلسات حاليًا
             </div>
           )}
         </div>
@@ -483,6 +499,17 @@ export default function PTPage() {
           date={receiptData.date}
           paymentMethod={receiptData.paymentMethod}
           onClose={() => setShowReceipt(false)}
+        />
+      )}
+
+      {showRenewalForm && selectedSession && (
+        <PTRenewalForm
+          session={selectedSession}
+          onSuccess={fetchSessions}
+          onClose={() => {
+            setShowRenewalForm(false)
+            setSelectedSession(null)
+          }}
         />
       )}
     </div>

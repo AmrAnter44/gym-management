@@ -1,3 +1,4 @@
+// app/api/members/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 
@@ -13,7 +14,6 @@ export async function GET() {
     
     console.log('✅ تم جلب', members.length, 'عضو')
     
-    // ✅ التأكد من إرجاع array دائماً
     if (!Array.isArray(members)) {
       console.error('❌ Prisma لم يرجع array:', typeof members)
       return NextResponse.json([], { status: 200 })
@@ -23,7 +23,6 @@ export async function GET() {
   } catch (error) {
     console.error('❌ Error fetching members:', error)
     
-    // ✅ إرجاع array فاضي في حالة الخطأ
     return NextResponse.json([], { 
       status: 200,
       headers: {
@@ -37,9 +36,23 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { memberNumber, name, phone, inBodyScans, invitations, freePTSessions, subscriptionPrice, remainingAmount, notes, startDate, expiryDate, paymentMethod } = body
+    const { 
+      memberNumber, 
+      name, 
+      phone, 
+      profileImage, // ✅ إضافة الصورة
+      inBodyScans, 
+      invitations, 
+      freePTSessions, 
+      subscriptionPrice, 
+      remainingAmount, 
+      notes, 
+      startDate, 
+      expiryDate, 
+      paymentMethod 
+    } = body
 
-    console.log('📝 إضافة عضو جديد:', { memberNumber, name, subscriptionPrice, freePTSessions, startDate, expiryDate, paymentMethod })
+    console.log('📝 إضافة عضو جديد:', { memberNumber, name, profileImage })
 
     // التحقق من أن رقم العضوية غير مستخدم
     if (memberNumber) {
@@ -75,6 +88,7 @@ export async function POST(request: Request) {
         memberNumber: memberNumber ? parseInt(memberNumber) : undefined,
         name,
         phone,
+        profileImage, // ✅ حفظ الصورة
         inBodyScans: inBodyScans || 0,
         invitations: invitations || 0,
         freePTSessions: freePTSessions || 0,
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ تم إنشاء العضو:', member.id, 'حصص PT:', member.freePTSessions)
+    console.log('✅ تم إنشاء العضو:', member.id, 'صورة:', member.profileImage)
 
     // إنشاء إيصال دائماً
     try {
@@ -103,7 +117,6 @@ export async function POST(request: Request) {
 
       const paidAmount = subscriptionPrice - (remainingAmount || 0)
 
-      // حساب مدة الاشتراك
       let subscriptionDays = null
       if (startDate && expiryDate) {
         const start = new Date(startDate)
@@ -157,9 +170,14 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, ...data } = body
+    const { id, profileImage, ...data } = body // ✅ استقبال الصورة
 
     const updateData: any = { ...data }
+    
+    // ✅ تحديث الصورة إذا تم إرسالها
+    if (profileImage !== undefined) {
+      updateData.profileImage = profileImage
+    }
     
     if (data.startDate) {
       updateData.startDate = new Date(data.startDate)
