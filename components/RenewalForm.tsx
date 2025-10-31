@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { printReceiptFromData } from '../lib/printSystem'
 import { calculateDaysBetween, formatDateYMD, formatDurationInMonths } from '../lib/dateFormatter'
-import PaymentMethodSelector from '../components/Paymentmethodselector '
+import PaymentMethodSelector from './Paymentmethodselector'
 
 interface Member {
   id: string

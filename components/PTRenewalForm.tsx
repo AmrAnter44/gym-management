@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { calculateDaysBetween, formatDateYMD, formatDurationInMonths } from '../lib/dateFormatter'
-import PaymentMethodSelector from '../components/Paymentmethodselector '
+import PaymentMethodSelector from './Paymentmethodselector'
 
 interface PTSession {
   ptNumber: number

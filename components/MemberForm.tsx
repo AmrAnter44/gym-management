@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import PaymentMethodSelector from './Paymentmethodselector '
+import { useState, useRef, useEffect } from 'react'
+
+import PaymentMethodSelector from '../components/Paymentmethodselector'
 import { calculateDaysBetween } from '../lib/dateFormatter'
 
 interface MemberFormProps {
@@ -31,8 +32,7 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     paymentMethod: 'cash' as 'cash' | 'visa' | 'instapay'
   })
 
-  // جلب رقم العضوية التالي
-  useState(() => {
+useState(() => {
     fetch('/api/members/next-number')
       .then(res => res.json())
       .then(data => {

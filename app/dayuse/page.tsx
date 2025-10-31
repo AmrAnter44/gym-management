@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ReceiptToPrint } from '../../components/ReceiptToPrint'
-import PaymentMethodSelector from '../../components/Paymentmethodselector '
+import PaymentMethodSelector from '../../components/Paymentmethodselector'
 
 interface DayUseEntry {
   id: string

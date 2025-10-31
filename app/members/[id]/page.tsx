@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ReceiptToPrint } from '../../../components/ReceiptToPrint'
-import PaymentMethodSelector from '../../../components/Paymentmethodselector '
+import PaymentMethodSelector from '../../../components/Paymentmethodselector'
 import RenewalForm from '../../../components/RenewalForm'
 import { formatDateYMD, calculateRemainingDays } from '../../../lib/dateFormatter'
 

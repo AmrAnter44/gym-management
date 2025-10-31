@@ -1,24 +1,24 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '../../../lib/prisma'
+import { NextResponse } from "next/server";
+import {prisma} from "../../../lib/prisma";
 
-// GET
+// ✅ GET كل العمليات
 export async function GET() {
   try {
-    const entries = await prisma.dayUseInBody.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { receipts: true }
-    })
-    return NextResponse.json(entries)
+    const dayUses = await prisma.dayUseInBody.findMany({
+      orderBy: { id: "desc" },
+    });
+    return NextResponse.json(dayUses);
   } catch (error) {
-    return NextResponse.json({ error: 'فشل جلب البيانات' }, { status: 500 })
+    console.error("❌ خطأ أثناء جلب البيانات:", error);
+    return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
   }
 }
 
-// POST
+// ✅ POST لإضافة يوم استخدام أو InBody + إنشاء إيصال
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { name, phone, serviceType, price, staffName, paymentMethod } = body
+    const body = await request.json();
+    const { name, phone, serviceType, price, staffName, paymentMethod } = body;
 
     // إنشاء الإدخال
     const entry = await prisma.dayUseInBody.create({
@@ -29,58 +29,82 @@ export async function POST(request: Request) {
         price,
         staffName,
       },
-    })
+    });
 
-    // إنشاء إيصال
-    let counter = await prisma.receiptCounter.findUnique({ where: { id: 1 } })
-    
+    // ✅ الحصول أو إنشاء العداد للإيصالات
+    let counter = await prisma.receiptCounter.findUnique({ where: { id: 1 } });
+
     if (!counter) {
       counter = await prisma.receiptCounter.create({
-        data: { id: 1, current: 1000 }
-      })
+        data: { id: 1, current: 1000 },
+      });
     }
 
+    const receiptNumber = counter.current;
+
+    // ✅ تحديد الاسم بالعربي حسب نوع الخدمة
+    const typeArabic =
+      serviceType === "DayUse"
+        ? "يوم استخدام"
+        : serviceType === "InBody"
+        ? "InBody"
+        : serviceType;
+
+    // ✅ إنشاء الإيصال وربطه بالـ DayUse
     await prisma.receipt.create({
       data: {
-        receiptNumber: counter.current,
-        type: serviceType,
+        receiptNumber,
+        type: typeArabic,
         amount: price,
-        paymentMethod: paymentMethod || 'cash', // ✅ إضافة طريقة الدفع
+        paymentMethod: paymentMethod || "كاش",
         itemDetails: JSON.stringify({
           name,
-          serviceType,
+          phone,
+          serviceType: typeArabic,
           price,
           staffName,
         }),
         dayUseId: entry.id,
       },
-    })
+    });
 
+    // ✅ تحديث رقم الإيصال بعد الإنشاء
     await prisma.receiptCounter.update({
       where: { id: 1 },
-      data: { current: counter.current + 1 }
-    })
+      data: { current: receiptNumber + 1 },
+    });
 
-    return NextResponse.json(entry, { status: 201 })
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'فشل إضافة الإدخال' }, { status: 500 })
+    return NextResponse.json(entry, { status: 201 });
+  } catch (error: any) {
+    console.error("❌ خطأ أثناء إنشاء DayUse أو الإيصال:", error);
+    if (error.code === "P2002") {
+      return NextResponse.json(
+        { error: "رقم الإيصال مكرر، حاول مرة أخرى" },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ error: "فشل إضافة الإدخال" }, { status: 500 });
   }
 }
 
-// DELETE
+// ✅ DELETE حذف إدخال حسب الـ ID
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: 'الرقم مطلوب' }, { status: 400 })
+      return NextResponse.json({ error: "لم يتم إرسال ID" }, { status: 400 });
     }
 
-    await prisma.dayUseInBody.delete({ where: { id } })
-    return NextResponse.json({ message: 'تم الحذف بنجاح' })
+    await prisma.dayUseInBody.delete({
+      where: { id: id! },
+    });
+
+    return NextResponse.json({ message: "تم الحذف بنجاح" });
   } catch (error) {
-    return NextResponse.json({ error: 'فشل الحذف' }, { status: 500 })
+    console.error("❌ خطأ أثناء الحذف:", error);
+    return NextResponse.json({ error: "فشل في حذف الإدخال" }, { status: 500 });
   }
 }
+
