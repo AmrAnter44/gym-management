@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { printReceiptFromData } from '../lib/printSystem'
-import { calculateDaysBetween, formatDateYMD, formatDurationInMonths } from '../lib/dateFormatter'
 import PaymentMethodSelector from './Paymentmethodselector'
 
 interface Member {
@@ -10,482 +8,421 @@ interface Member {
   memberNumber: number
   name: string
   phone: string
-  subscriptionPrice: number
+  inBodyScans: number
+  invitations: number
   freePTSessions?: number
-  inBodyScans?: number      // ✅ إضافة InBody
-  invitations?: number       // ✅ إضافة Invitations
+  subscriptionPrice: number
+  remainingAmount: number
+  notes?: string
+  isActive: boolean
   startDate?: string
   expiryDate?: string
+  createdAt: string
+}
+
+interface Receipt {
+  receiptNumber: number
+  amount: number
+  paymentMethod: string
+  createdAt: string
+  itemDetails: {
+    memberNumber?: number
+    memberName?: string
+    subscriptionPrice?: number
+    paidAmount?: number
+    remainingAmount?: number
+    freePTSessions?: number
+    inBodyScans?: number
+    invitations?: number
+    startDate?: string
+    expiryDate?: string
+    subscriptionDays?: number
+    [key: string]: any
+  }
 }
 
 interface RenewalFormProps {
   member: Member
-  onSuccess: () => void
+  onSuccess: (receipt?: Receipt) => void  // ✅ استقبال الإيصال
   onClose: () => void
 }
 
 export default function RenewalForm({ member, onSuccess, onClose }: RenewalFormProps) {
-  const getDefaultStartDate = () => {
-    if (member.expiryDate) {
-      const expiry = new Date(member.expiryDate)
-      const today = new Date()
-      
-      return expiry < today 
-        ? today.toISOString().split('T')[0]
-        : expiry.toISOString().split('T')[0]
-    }
-    return new Date().toISOString().split('T')[0]
-  }
-
-  const [formData, setFormData] = useState({
-    subscriptionPrice: member.subscriptionPrice,
-    remainingAmount: 0,
-    freePTSessions: 0,    // ✅ حصص PT المجانية الجديدة
-    inBodyScans: 0,       // ✅ حصص InBody الجديدة
-    invitations: 0,       // ✅ حصص Invitations الجديدة
-    startDate: getDefaultStartDate(),
-    expiryDate: '',
-    notes: '',
-    paymentMethod: 'cash',
-  })
+  const [subscriptionPrice, setSubscriptionPrice] = useState('')
+  const [remainingAmount, setRemainingAmount] = useState('0')
+  const [freePTSessions, setFreePTSessions] = useState('0')
+  const [inBodyScans, setInBodyScans] = useState('0')
+  const [invitations, setInvitations] = useState('0')
+  const [startDate, setStartDate] = useState('')
+  const [expiryDate, setExpiryDate] = useState('')
+  const [notes, setNotes] = useState(member.notes || '')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
-  const calculateDuration = () => {
-    if (!formData.startDate || !formData.expiryDate) return null
-    return calculateDaysBetween(formData.startDate, formData.expiryDate)
+  // حساب الأيام بين تاريخين
+  const calculateDays = (start: string, end: string) => {
+    if (!start || !end) return 0
+    const startDate = new Date(start)
+    const endDate = new Date(end)
+    const diffTime = endDate.getTime() - startDate.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays > 0 ? diffDays : 0
   }
 
-  const calculateExpiryFromMonths = (months: number) => {
-    if (!formData.startDate) return
-    
-    const start = new Date(formData.startDate)
-    const expiry = new Date(start)
-    expiry.setMonth(expiry.getMonth() + months)
-    
-    setFormData(prev => ({ 
-      ...prev, 
-      expiryDate: expiry.toISOString().split('T')[0] 
-    }))
+  // حساب المبلغ المدفوع
+  const calculatePaidAmount = () => {
+    const price = parseFloat(subscriptionPrice) || 0
+    const remaining = parseFloat(remainingAmount) || 0
+    return price - remaining
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage('')
-
-    if (formData.startDate && formData.expiryDate) {
-      const start = new Date(formData.startDate)
-      const end = new Date(formData.expiryDate)
-      
-      if (end <= start) {
-        setMessage('❌ تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية')
-        setLoading(false)
-        return
-      }
+  const handleRenewal = async () => {
+    // التحقق من البيانات
+    if (!subscriptionPrice || parseFloat(subscriptionPrice) <= 0) {
+      setError('⚠️ يرجى إدخال سعر اشتراك صحيح')
+      return
     }
+
+    if (!startDate || !expiryDate) {
+      setError('⚠️ يرجى تحديد تاريخ البداية والانتهاء')
+      return
+    }
+
+    // التحقق من أن تاريخ الانتهاء بعد تاريخ البداية
+    if (new Date(expiryDate) <= new Date(startDate)) {
+      setError('⚠️ تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية')
+      return
+    }
+
+    setLoading(true)
+    setError('')
 
     try {
+      console.log('🔄 إرسال طلب التجديد...')
+      
       const response = await fetch('/api/members/renew', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           memberId: member.id,
-          ...formData
-        }),
+          subscriptionPrice: parseFloat(subscriptionPrice),
+          remainingAmount: parseFloat(remainingAmount) || 0,
+          freePTSessions: parseInt(freePTSessions) || 0,
+          inBodyScans: parseInt(inBodyScans) || 0,
+          invitations: parseInt(invitations) || 0,
+          startDate,
+          expiryDate,
+          notes,
+          paymentMethod
+        })
       })
 
-      const result = await response.json()
-
       if (response.ok) {
-        if (result.receipt) {
-          setTimeout(() => {
-            printReceiptFromData(
-              result.receipt.receiptNumber,
-              'Member',
-              result.receipt.amount,
-              result.receipt.itemDetails,
-              result.receipt.createdAt,
-              formData.paymentMethod
-            )
-          }, 500)
+        const data = await response.json()
+        
+        console.log('✅ تم التجديد بنجاح:', data)
+        
+        // ⭐ تمرير بيانات الإيصال إلى onSuccess
+        if (data.receipt) {
+          onSuccess(data.receipt)  // ✅ هذا هو التغيير الرئيسي
+        } else {
+          onSuccess()  // في حالة عدم وجود إيصال
         }
-
-        setMessage('✅ تم تجديد الاشتراك بنجاح!')
-        setTimeout(() => {
-          onSuccess()
-          onClose()
-        }, 1500)
       } else {
-        setMessage(`❌ ${result.error || 'فشل التجديد'}`)
+        const errorData = await response.json()
+        setError(errorData.error || '❌ فشل تجديد الاشتراك')
       }
     } catch (error) {
-      console.error(error)
-      setMessage('❌ حدث خطأ في الاتصال')
+      console.error('❌ خطأ في التجديد:', error)
+      setError('❌ حدث خطأ غير متوقع')
     } finally {
       setLoading(false)
     }
   }
 
-  const paidAmount = formData.subscriptionPrice - formData.remainingAmount
-  const duration = calculateDuration()
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" dir="rtl">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: 9999 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-2xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">🔄 تجديد الاشتراك</h2>
-              <p className="text-blue-100">تجديد اشتراك العضو</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full w-10 h-10 flex items-center justify-center transition"
-            >
-              ✕
-            </button>
+        <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
+          <h3 className="text-2xl font-bold flex items-center gap-2">
+            <span>🔄</span>
+            <span>تجديد اشتراك</span>
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* معلومات العضو */}
+        <div className="bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg mb-6">
+          <h4 className="font-bold text-blue-900 mb-2">معلومات العضو</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <p className="text-blue-800">
+              <strong>الاسم:</strong> {member.name}
+            </p>
+            <p className="text-blue-800">
+              <strong>رقم العضوية:</strong> #{member.memberNumber}
+            </p>
+            <p className="text-blue-800">
+              <strong>حصص PT الحالية:</strong> {member.freePTSessions || 0}
+            </p>
+            <p className="text-blue-800">
+              <strong>InBody الحالي:</strong> {member.inBodyScans || 0}
+            </p>
+            <p className="text-blue-800">
+              <strong>الدعوات الحالية:</strong> {member.invitations || 0}
+            </p>
+            {member.expiryDate && (
+              <p className="text-blue-800">
+                <strong>تاريخ الانتهاء السابق:</strong> {new Date(member.expiryDate).toLocaleDateString('ar-EG')}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="p-6">
-          {/* معلومات العضو */}
-          <div className="bg-blue-50 border-r-4 border-blue-500 p-4 rounded-lg mb-6">
-            <div className="grid grid-cols-2 gap-4">
+        {/* رسالة الخطأ */}
+        {error && (
+          <div className="bg-red-50 border-r-4 border-red-500 p-4 rounded-lg mb-4">
+            <p className="text-red-700 font-medium">{error}</p>
+          </div>
+        )}
+
+        {/* النموذج */}
+        <form onSubmit={(e) => { e.preventDefault(); handleRenewal(); }} className="space-y-6">
+          
+          {/* القسم 1: الاشتراك */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>💰</span>
+              <span>تفاصيل الاشتراك</span>
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600">رقم العضوية</p>
-                <p className="text-2xl font-bold text-blue-600">#{member.memberNumber}</p>
+                <label className="block text-sm font-medium mb-2">
+                  سعر الاشتراك <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={subscriptionPrice}
+                  onChange={(e) => setSubscriptionPrice(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-blue-500"
+                  placeholder="مثال: 1000"
+                  min="0"
+                  step="0.01"
+                  required
+                />
               </div>
+
               <div>
-                <p className="text-sm text-gray-600">الاسم</p>
-                <p className="text-lg font-bold">{member.name}</p>
+                <label className="block text-sm font-medium mb-2">
+                  المبلغ المتبقي
+                </label>
+                <input
+                  type="number"
+                  value={remainingAmount}
+                  onChange={(e) => setRemainingAmount(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-blue-500"
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">رقم الهاتف</p>
-                <p className="text-lg">{member.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">تاريخ الانتهاء الحالي</p>
-                <p className="text-lg font-mono">
-                  {formatDateYMD(member.expiryDate)}
+            </div>
+
+            {/* عرض المبلغ المدفوع */}
+            {subscriptionPrice && (
+              <div className="mt-4 bg-green-50 border-2 border-green-300 rounded-lg p-3">
+                <p className="text-sm text-green-800">
+                  💵 <strong>المبلغ المدفوع:</strong> {calculatePaidAmount().toFixed(2)} جنيه
                 </p>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* ✅ عرض الحصص الحالية */}
-            <div className="mt-4 pt-4 border-t border-blue-200">
-              <p className="text-sm font-medium text-gray-700 mb-2">الحصص المتبقية حالياً:</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-600">💪 PT</p>
-                  <p className="text-xl font-bold text-orange-600">{member.freePTSessions || 0}</p>
-                </div>
-                <div className="bg-white rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-600">⚖️ InBody</p>
-                  <p className="text-xl font-bold text-green-600">{member.inBodyScans || 0}</p>
-                </div>
-                <div className="bg-white rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-600">🎟️ دعوات</p>
-                  <p className="text-xl font-bold text-purple-600">{member.invitations || 0}</p>
-                </div>
+          {/* القسم 2: الحصص الإضافية */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>🎁</span>
+              <span>الحصص الإضافية (اختياري)</span>
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  🏋️ حصص PT إضافية
+                </label>
+                <input
+                  type="number"
+                  value={freePTSessions}
+                  onChange={(e) => setFreePTSessions(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  placeholder="0"
+                  min="0"
+                />
+                {parseInt(freePTSessions) > 0 && (
+                  <p className="text-xs text-purple-600 mt-1">
+                    ✅ الإجمالي: {(member.freePTSessions || 0) + parseInt(freePTSessions)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  ⚖️ InBody Scans إضافية
+                </label>
+                <input
+                  type="number"
+                  value={inBodyScans}
+                  onChange={(e) => setInBodyScans(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  placeholder="0"
+                  min="0"
+                />
+                {parseInt(inBodyScans) > 0 && (
+                  <p className="text-xs text-purple-600 mt-1">
+                    ✅ الإجمالي: {(member.inBodyScans || 0) + parseInt(inBodyScans)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  🎟️ دعوات إضافية
+                </label>
+                <input
+                  type="number"
+                  value={invitations}
+                  onChange={(e) => setInvitations(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  placeholder="0"
+                  min="0"
+                />
+                {parseInt(invitations) > 0 && (
+                  <p className="text-xs text-purple-600 mt-1">
+                    ✅ الإجمالي: {(member.invitations || 0) + parseInt(invitations)}
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
-          {message && (
-            <div className={`mb-4 p-4 rounded-lg ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {message}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* قسم طريقة الدفع */}
-            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-5">
-              <PaymentMethodSelector
-                value={formData.paymentMethod}
-                onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
-                required
-              />
-            </div>
-
-            {/* قسم التواريخ */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <span>📅</span>
-                <span>فترة الاشتراك الجديدة</span>
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    تاريخ البداية <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-4 py-3 border-2 rounded-lg font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    تاريخ الانتهاء <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.expiryDate}
-                    onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                    className="w-full px-4 py-3 border-2 rounded-lg font-mono"
-                  />
-                </div>
+          {/* القسم 3: التواريخ */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>📅</span>
+              <span>فترة الاشتراك</span>
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  تاريخ البداية <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-blue-500"
+                  required
+                />
               </div>
 
-              <div className="mb-4">
-                <p className="text-sm font-medium mb-2">⚡ إضافة سريعة:</p>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 6, 9, 12].map(months => (
-                    <button
-                      key={months}
-                      type="button"
-                      onClick={() => calculateExpiryFromMonths(months)}
-                      className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm transition font-medium"
-                    >
-                      + {months} {months === 1 ? 'شهر' : 'أشهر'}
-                    </button>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  تاريخ الانتهاء <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-blue-500"
+                  required
+                />
               </div>
+            </div>
 
-              {duration !== null && (
-                <div className="bg-white border-2 border-blue-300 rounded-lg p-4">
-                  {duration > 0 ? (
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">⏱️</span>
-                      <div>
-                        <p className="font-bold text-blue-800 mb-1">مدة الاشتراك الجديدة:</p>
-                        <p className="text-xl font-mono">
-                          {formatDurationInMonths(duration)}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-red-600 flex items-center gap-2">
-                      <span>❌</span>
-                      <span>تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية</span>
-                    </p>
-                  )}
-                </div>
+            {/* عرض مدة الاشتراك */}
+            {startDate && expiryDate && (
+              <div className="mt-4 bg-blue-50 border-2 border-blue-300 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  ⏱️ <strong>مدة الاشتراك:</strong> {calculateDays(startDate, expiryDate)} يوم
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* القسم 4: طريقة الدفع */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>💳</span>
+              <span>طريقة الدفع</span>
+            </h4>
+            <PaymentMethodSelector
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+            />
+          </div>
+
+          {/* القسم 5: ملاحظات */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              📝 ملاحظات (اختياري)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:border-blue-500"
+              rows={3}
+              placeholder="أي ملاحظات إضافية..."
+            />
+          </div>
+
+          {/* الأزرار */}
+          <div className="flex gap-3 sticky bottom-0 bg-white pt-4 border-t">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 font-bold text-lg shadow-lg transition-all"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  <span>جاري التجديد...</span>
+                </span>
+              ) : (
+                '✅ تأكيد التجديد'
               )}
-            </div>
-
-            {/* ✅ قسم السعر والمتبقي والحصص */}
-            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <span>💰</span>
-                <span>المبالغ والحصص</span>
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    سعر الاشتراك <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formData.subscriptionPrice}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-                      setFormData({ ...formData, subscriptionPrice: value })
-                    }}
-                    step="1"
-                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    المبلغ المتبقي
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.remainingAmount}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : Math.round(parseFloat(e.target.value))
-                      setFormData({ ...formData, remainingAmount: value })
-                    }}
-                    step="1"
-                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                    placeholder="0"
-                  />
-                </div>
-
-                {/* ✅ حقل حصص PT المجانية */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
-                    <span>💪</span>
-                    <span>حصص PT إضافية</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.freePTSessions}
-                    onChange={(e) => setFormData({ ...formData, freePTSessions: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    سيتم إضافتها للحصص الحالية ({member.freePTSessions || 0})
-                  </p>
-                </div>
-
-                {/* ✅ حقل حصص InBody */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
-                    <span>⚖️</span>
-                    <span>حصص InBody إضافية</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.inBodyScans}
-                    onChange={(e) => setFormData({ ...formData, inBodyScans: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    سيتم إضافتها للحصص الحالية ({member.inBodyScans || 0})
-                  </p>
-                </div>
-
-                {/* ✅ حقل الدعوات */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-2 flex items-center gap-1">
-                    <span>🎟️</span>
-                    <span>دعوات إضافية</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.invitations}
-                    onChange={(e) => setFormData({ ...formData, invitations: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 border-2 rounded-lg text-lg"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    سيتم إضافتها للدعوات الحالية ({member.invitations || 0})
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* ملاحظات */}
-            <div>
-              <label className="block text-sm font-medium mb-2">ملاحظات التجديد</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full px-4 py-3 border-2 rounded-lg"
-                rows={3}
-                placeholder="أي ملاحظات عن التجديد..."
-              />
-            </div>
-
-            {/* ملخص المبالغ */}
-            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <span>💰</span>
-                <span>ملخص الدفع</span>
-              </h3>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between text-lg">
-                  <span className="text-gray-600">سعر الاشتراك:</span>
-                  <span className="font-bold">{formData.subscriptionPrice} ج.م</span>
-                </div>
-                
-                {formData.remainingAmount > 0 && (
-                  <div className="flex justify-between text-lg">
-                    <span className="text-gray-600">المتبقي:</span>
-                    <span className="font-bold text-red-600">- {formData.remainingAmount} ج.م</span>
-                  </div>
-                )}
-                
-                {/* ✅ عرض الحصص الإضافية */}
-                {(formData.freePTSessions > 0 || formData.inBodyScans > 0 || formData.invitations > 0) && (
-                  <div className="bg-white border-2 border-green-300 rounded-lg p-3">
-                    <p className="text-sm font-medium text-gray-700 mb-2">الحصص الإضافية:</p>
-                    <div className="space-y-1 text-sm">
-                      {formData.freePTSessions > 0 && (
-                        <div className="flex justify-between">
-                          <span>💪 PT:</span>
-                          <span className="font-bold text-orange-600">
-                            +{formData.freePTSessions} (الإجمالي: {(member.freePTSessions || 0) + formData.freePTSessions})
-                          </span>
-                        </div>
-                      )}
-                      {formData.inBodyScans > 0 && (
-                        <div className="flex justify-between">
-                          <span>⚖️ InBody:</span>
-                          <span className="font-bold text-green-600">
-                            +{formData.inBodyScans} (الإجمالي: {(member.inBodyScans || 0) + formData.inBodyScans})
-                          </span>
-                        </div>
-                      )}
-                      {formData.invitations > 0 && (
-                        <div className="flex justify-between">
-                          <span>🎟️ دعوات:</span>
-                          <span className="font-bold text-purple-600">
-                            +{formData.invitations} (الإجمالي: {(member.invitations || 0) + formData.invitations})
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="border-t-2 border-gray-300 pt-3">
-                  <div className="flex justify-between text-xl">
-                    <span className="font-bold text-gray-800">المبلغ المدفوع:</span>
-                    <span className="font-bold text-green-600">{paidAmount} ج.م</span>
-                  </div>
-                </div>
-
-                <div className="bg-blue-100 border-r-4 border-blue-500 p-3 rounded">
-                  <p className="text-sm text-blue-800">
-                    <strong>📝 ملاحظة:</strong> سيتم إنشاء إيصال جديد برقم إيصال جديد
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* الأزرار */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || (duration !== null && duration <= 0)}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-bold text-lg"
-              >
-                {loading ? 'جاري التجديد...' : '✅ تجديد الاشتراك'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
-              >
-                إلغاء
-              </button>
-            </div>
-          </form>
-        </div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-8 bg-gray-200 text-gray-700 py-4 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 font-bold"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

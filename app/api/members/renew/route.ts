@@ -1,5 +1,30 @@
+// app/api/members/renew/route.ts - النسخة المُصلحة
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
+
+// 🔧 دالة للبحث عن رقم إيصال متاح
+async function getNextAvailableReceiptNumber(startingNumber: number): Promise<number> {
+  let currentNumber = startingNumber
+  let attempts = 0
+  const MAX_ATTEMPTS = 100
+  
+  while (attempts < MAX_ATTEMPTS) {
+    const existingReceipt = await prisma.receipt.findUnique({
+      where: { receiptNumber: currentNumber }
+    })
+    
+    if (!existingReceipt) {
+      console.log(`✅ رقم إيصال متاح: ${currentNumber}`)
+      return currentNumber
+    }
+    
+    console.log(`⚠️ رقم ${currentNumber} موجود، تجربة ${currentNumber + 1}...`)
+    currentNumber++
+    attempts++
+  }
+  
+  throw new Error(`فشل إيجاد رقم إيصال متاح بعد ${MAX_ATTEMPTS} محاولة`)
+}
 
 // POST - تجديد اشتراك عضو
 export async function POST(request: Request) {
@@ -10,8 +35,8 @@ export async function POST(request: Request) {
       subscriptionPrice, 
       remainingAmount, 
       freePTSessions, 
-      inBodyScans,      // ✅ إضافة InBody
-      invitations,       // ✅ إضافة Invitations
+      inBodyScans,
+      invitations,
       startDate, 
       expiryDate, 
       notes, 
@@ -43,12 +68,12 @@ export async function POST(request: Request) {
     const additionalFreePT = freePTSessions || 0
     const totalFreePT = currentFreePT + additionalFreePT
 
-    // ✅ حساب InBody الجديد (الحالي + الإضافي)
+    // حساب InBody الجديد (الحالي + الإضافي)
     const currentInBody = member.inBodyScans || 0
     const additionalInBody = inBodyScans || 0
     const totalInBody = currentInBody + additionalInBody
 
-    // ✅ حساب Invitations الجديد (الحالي + الإضافي)
+    // حساب Invitations الجديد (الحالي + الإضافي)
     const currentInvitations = member.invitations || 0
     const additionalInvitations = invitations || 0
     const totalInvitations = currentInvitations + additionalInvitations
@@ -63,9 +88,9 @@ export async function POST(request: Request) {
       data: {
         subscriptionPrice,
         remainingAmount: remainingAmount || 0,
-        freePTSessions: totalFreePT,     // ✅ تحديث حصص PT المجانية
-        inBodyScans: totalInBody,        // ✅ تحديث InBody
-        invitations: totalInvitations,   // ✅ تحديث Invitations
+        freePTSessions: totalFreePT,
+        inBodyScans: totalInBody,
+        invitations: totalInvitations,
         startDate: startDate ? new Date(startDate) : null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         isActive: true,
@@ -85,7 +110,12 @@ export async function POST(request: Request) {
         })
       }
 
-      console.log('🧾 رقم الإيصال التالي:', counter.current)
+      console.log('🧾 رقم الإيصال من العداد:', counter.current)
+
+      // ✅ البحث عن رقم إيصال متاح
+      const availableReceiptNumber = await getNextAvailableReceiptNumber(counter.current)
+      
+      console.log('✅ سيتم استخدام رقم الإيصال:', availableReceiptNumber)
 
       const paidAmount = subscriptionPrice - (remainingAmount || 0)
 
@@ -99,8 +129,8 @@ export async function POST(request: Request) {
 
       const receipt = await prisma.receipt.create({
         data: {
-          receiptNumber: counter.current,
-          type: 'تجديد عضويه', // ✅ تغيير النوع من Member إلى Renewal
+          receiptNumber: availableReceiptNumber, // ✅ استخدام الرقم المتاح
+          type: 'تجديد عضويه',
           amount: paidAmount,
           paymentMethod: paymentMethod || 'cash',
           itemDetails: JSON.stringify({
@@ -109,15 +139,15 @@ export async function POST(request: Request) {
             subscriptionPrice,
             paidAmount,
             remainingAmount: remainingAmount || 0,
-            // ✅ حصص PT في الإيصال
+            // حصص PT في الإيصال
             freePTSessions: additionalFreePT,
             previousFreePTSessions: currentFreePT,
             totalFreePTSessions: totalFreePT,
-            // ✅ InBody في الإيصال
+            // InBody في الإيصال
             inBodyScans: additionalInBody,
             previousInBodyScans: currentInBody,
             totalInBodyScans: totalInBody,
-            // ✅ Invitations في الإيصال
+            // Invitations في الإيصال
             invitations: additionalInvitations,
             previousInvitations: currentInvitations,
             totalInvitations: totalInvitations,
@@ -126,7 +156,7 @@ export async function POST(request: Request) {
             newStartDate: startDate,
             newExpiryDate: expiryDate,
             subscriptionDays: subscriptionDays,
-            isRenewal: true, // ✅ علامة التجديد
+            isRenewal: true,
           }),
           memberId: member.id,
         },
@@ -134,18 +164,21 @@ export async function POST(request: Request) {
 
       console.log('✅ تم إنشاء إيصال التجديد:', receipt.receiptNumber)
 
+      // ✅ تحديث العداد للرقم بعد الرقم المستخدم
+      const newCounterValue = availableReceiptNumber + 1
       await prisma.receiptCounter.update({
         where: { id: 1 },
-        data: { current: counter.current + 1 }
+        data: { current: newCounterValue }
       })
 
-      console.log('🔄 تم تحديث عداد الإيصالات')
+      console.log('🔄 تم تحديث عداد الإيصالات إلى:', newCounterValue)
 
       return NextResponse.json({
         member: updatedMember,
         receipt: {
           receiptNumber: receipt.receiptNumber,
           amount: receipt.amount,
+          paymentMethod: receipt.paymentMethod,
           itemDetails: JSON.parse(receipt.itemDetails),
           createdAt: receipt.createdAt
         }

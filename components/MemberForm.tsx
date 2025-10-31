@@ -29,11 +29,11 @@ export default function MemberForm({ onSuccess }: MemberFormProps) {
     notes: '',
     startDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
-    paymentMethod: 'cash' as 'cash' | 'visa' | 'instapay'
+paymentMethod: 'cash' as 'cash' | 'visa' | 'instapay' | 'wallet' // ✅
   })
 
-useState(() => {
-    fetch('/api/members/next-number')
+useEffect(() => {  // ✅
+  fetch('/api/members/next-number')
       .then(res => res.json())
       .then(data => {
         setNextMemberNumber(data.nextNumber)
@@ -718,10 +718,13 @@ useState(() => {
 
         <div className="mt-4">
           <label className="block text-sm font-medium mb-2">طريقة الدفع</label>
-          <PaymentMethodSelector
-            value={formData.paymentMethod}
-            onChange={(method) => setFormData({ ...formData, paymentMethod: method })}
-          />
+<PaymentMethodSelector
+  value={formData.paymentMethod}
+  onChange={(method) => setFormData({ 
+    ...formData, 
+    paymentMethod: method as 'cash' | 'visa' | 'instapay' | 'wallet' // ✅
+  })}
+/>
         </div>
       </div>
 

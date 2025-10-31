@@ -1,6 +1,30 @@
-// app/api/members/route.ts
+// app/api/members/route.ts - النسخة المُصلحة
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
+
+// 🔧 دالة للبحث عن رقم إيصال متاح
+async function getNextAvailableReceiptNumber(startingNumber: number): Promise<number> {
+  let currentNumber = startingNumber
+  let attempts = 0
+  const MAX_ATTEMPTS = 100
+  
+  while (attempts < MAX_ATTEMPTS) {
+    const existingReceipt = await prisma.receipt.findUnique({
+      where: { receiptNumber: currentNumber }
+    })
+    
+    if (!existingReceipt) {
+      console.log(`✅ رقم إيصال متاح: ${currentNumber}`)
+      return currentNumber
+    }
+    
+    console.log(`⚠️ رقم ${currentNumber} موجود، تجربة ${currentNumber + 1}...`)
+    currentNumber++
+    attempts++
+  }
+  
+  throw new Error(`فشل إيجاد رقم إيصال متاح بعد ${MAX_ATTEMPTS} محاولة`)
+}
 
 // GET - جلب كل الأعضاء
 export async function GET() {
@@ -114,7 +138,12 @@ export async function POST(request: Request) {
         })
       }
 
-      console.log('🧾 رقم الإيصال التالي:', counter.current)
+      console.log('🧾 رقم الإيصال من العداد:', counter.current)
+
+      // ✅ البحث عن رقم إيصال متاح
+      const availableReceiptNumber = await getNextAvailableReceiptNumber(counter.current)
+      
+      console.log('✅ سيتم استخدام رقم الإيصال:', availableReceiptNumber)
 
       const paidAmount = subscriptionPrice - (remainingAmount || 0)
 
@@ -127,7 +156,7 @@ export async function POST(request: Request) {
 
       const receipt = await prisma.receipt.create({
         data: {
-          receiptNumber: counter.current,
+          receiptNumber: availableReceiptNumber, // ✅ استخدام الرقم المتاح
           type: 'Member',
           amount: paidAmount,
           paymentMethod: paymentMethod || 'cash',
@@ -150,12 +179,14 @@ export async function POST(request: Request) {
 
       console.log('✅ تم إنشاء الإيصال:', receipt.receiptNumber)
 
+      // ✅ تحديث العداد للرقم بعد الرقم المستخدم
+      const newCounterValue = availableReceiptNumber + 1
       await prisma.receiptCounter.update({
         where: { id: 1 },
-        data: { current: counter.current + 1 }
+        data: { current: newCounterValue }
       })
 
-      console.log('🔄 تم تحديث عداد الإيصالات إلى:', counter.current + 1)
+      console.log('🔄 تم تحديث عداد الإيصالات إلى:', newCounterValue)
 
       // ✅ تجهيز بيانات الإيصال للإرجاع
       receiptData = {
@@ -168,6 +199,10 @@ export async function POST(request: Request) {
 
     } catch (receiptError) {
       console.error('❌ خطأ في إنشاء الإيصال:', receiptError)
+      // إذا كانت المشكلة في رقم الإيصال المكرر
+      if (receiptError instanceof Error && receiptError.message.includes('Unique constraint')) {
+        console.error('❌ رقم الإيصال مكرر! المحاولة مرة أخرى...')
+      }
     }
 
     // ✅ إرجاع بيانات العضو + الإيصال

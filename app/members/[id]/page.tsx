@@ -24,6 +24,27 @@ interface Member {
   createdAt: string
 }
 
+interface Receipt {
+  receiptNumber: number
+  amount: number
+  paymentMethod: string
+  createdAt: string
+  itemDetails: {
+    memberNumber?: number
+    memberName?: string
+    subscriptionPrice?: number
+    paidAmount?: number
+    remainingAmount?: number
+    freePTSessions?: number
+    inBodyScans?: number
+    invitations?: number
+    startDate?: string
+    expiryDate?: string
+    subscriptionDays?: number
+    [key: string]: any
+  }
+}
+
 export default function MemberDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -959,9 +980,24 @@ export default function MemberDetailPage() {
       {showRenewalForm && (
         <RenewalForm
           member={member}
-          onSuccess={() => {
+          onSuccess={(receipt?: Receipt) => {
+            // ✅ عرض الإيصال بعد التجديد
+            if (receipt) {
+              setReceiptData({
+                receiptNumber: receipt.receiptNumber,
+                type: 'تجديد عضويه',
+                amount: receipt.amount,
+                details: receipt.itemDetails,
+                date: new Date(receipt.createdAt),
+                paymentMethod: receipt.paymentMethod || 'cash'
+              })
+              setShowReceipt(true)
+            }
+            
             fetchMember()
             setShowRenewalForm(false)
+            setMessage('✅ تم تجديد الاشتراك بنجاح!')
+            setTimeout(() => setMessage(''), 3000)
           }}
           onClose={() => setShowRenewalForm(false)}
         />

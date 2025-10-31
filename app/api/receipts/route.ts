@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const memberId = searchParams.get('memberId')
-    const ptId = searchParams.get('ptId')
+    const ptNumber = searchParams.get('ptNumber') // ✅ تم التغيير
     const dayUseId = searchParams.get('dayUseId')
     const limit = searchParams.get('limit')
 
@@ -16,9 +16,9 @@ export async function GET(request: Request) {
         where: { memberId },
         orderBy: { createdAt: 'desc' }
       })
-    } else if (ptId) {
+    } else if (ptNumber) { // ✅ تم التغيير
       receipts = await prisma.receipt.findMany({
-        where: { ptId },
+        where: { ptNumber: parseInt(ptNumber) }, // ✅ تم التغيير
         orderBy: { createdAt: 'desc' }
       })
     } else if (dayUseId) {
